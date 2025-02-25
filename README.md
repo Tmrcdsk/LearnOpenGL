@@ -199,3 +199,31 @@ glDrawArrays(GL_TRIANGLES, 0, 3);
 - 第一个参数是我们打算绘制的OpenGL图元的类型。
 - 第二个参数指定了顶点数组的起始索引。
 - 最后一个参数指定我们打算绘制多少个顶点。
+
+### 元素缓冲对象
+元素缓冲对象(Element Buffer Object，EBO)，也叫索引缓冲对象(Index Buffer Object，IBO)。
+
+与VBO类似，我们先绑定EBO然后用`glBufferData`把索引复制到缓冲里。同样，和VBO类似，我们会把这些函数调用放在绑定和解绑函数调用之间，只不过这次我们把缓冲的类型定义为`GL_ELEMENT_ARRAY_BUFFER`。
+
+注意：我们传递了`GL_ELEMENT_ARRAY_BUFFER`当作缓冲目标。最后一件要做的事是用`glDrawElements`来替换`glDrawArrays`函数，表示我们要从索引缓冲区渲染三角形。使用`glDrawElements`时，我们会使用当前绑定的索引缓冲对象中的索引进行绘制：
+```cpp
+glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+```
+- 第一个参数指定了我们绘制的模式，这个和glDrawArrays- 的一样。
+- 第二个参数是我们打算绘制顶点的个数，这里填6，也就是说我们一共需要绘制6个顶点。
+- 第三个参数是索引的类型，这里是`GL_UNSIGNED_INT`。
+- 最后一个参数里我们可以指定EBO中的偏移量（或者传递一个索引数组，但是这是当你不在使用索引缓冲对象的时候），但是我们会在这里填写0。
+
+`glDrawElements`函数从当前绑定到`GL_ELEMENT_ARRAY_BUFFER`目标的EBO中获取其索引。这意味着我们每次想要使用索引渲染对象时都必须绑定相应的EBO，这又有点麻烦。碰巧顶点数组对象也跟踪元素缓冲区对象绑定。在绑定VAO时，绑定的最后一个元素缓冲区对象存储为VAO的元素缓冲区对象。然后，绑定到VAO也会自动绑定该EBO。
+
+![](results/vertex_array_objects_ebo.png)
+<div style="background-color:#ffd2d2; padding: 10px; border-radius: 10px; color: black;">
+  当目标是 GL_ELEMENT_ARRAY_BUFFER 的时候，VAO会储存 glBindBuffer 的函数调用。这也意味着它也会储存解绑调用，所以确保你没有在解绑VAO之前解绑索引数组缓冲，否则它就没有这个EBO配置了。
+</div>
+</br>
+<div style="background-color:#d8f5d8; padding: 10px; border-radius: 10px; color: black;">
+  **线框模式(Wireframe Mode)**
+
+  要想用线框模式绘制你的三角形，你可以通过 glPolygonMode(GL_FRONT_AND_BACK, GL_LINE) 函数配置OpenGL如何绘制图元。第一个参数表示我们打算将其应用到所有的三角形的正面和背面，第二个参数告诉我们用线来绘制。之后的绘制调用会一直以线框模式绘制三角形，直到我们用 glPolygonMode(GL_FRONT_AND_BACK, GL_FILL) 将其设置回默认模式。
+</div>
