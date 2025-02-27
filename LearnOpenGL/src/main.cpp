@@ -36,17 +36,16 @@ int main()
 		std::cout << "Failed to initialize GLAD" << std::endl;
 		return -1;
 	}
-
+	
 	float vertices[] = {
-		 0.5f,  0.5f, 0.0f,   // 右上角
-		 0.5f, -0.5f, 0.0f,   // 右下角
-		-0.5f, -0.5f, 0.0f,   // 左下角
-		-0.5f,  0.5f, 0.0f    // 左上角
+		// position			// color
+		 0.5f, -0.5f, 0.0f,  1.0f, 0.0f, 0.0f,   // right
+		-0.5f, -0.5f, 0.0f,  0.0f, 1.0f, 0.0f,   // left
+		 0.0f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f    // top
 	};
 
 	unsigned int indices[] = {
-		0, 1, 2, // 第一个三角形
-		2, 3, 0  // 第二个三角形
+		0, 1, 2
 	};
 
 	unsigned int VAO;
@@ -67,26 +66,33 @@ int main()
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 	// 4. 设置顶点属性指针
 	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
 
 	const char* vertexShaderSrc = R"(
 		#version 330 core
 		layout (location = 0) in vec3 aPos;
+		layout (location = 1) in vec3 aColor;
+
+		out vec3 vColor;
 
 		void main()
 		{
 			gl_Position = vec4(aPos, 1.0);
+			vColor = aColor;
 		}
 	)";
 	const char* fragmentShaderSrc = R"(
 		#version 330 core
 		out vec4 FragColor;
 
-		uniform vec4 ourColor;
+		in vec3 vColor;
 
 		void main()
 		{
-			FragColor = ourColor;
+			FragColor = vec4(vColor, 1.0f);
 		}
 	)";
 
@@ -142,16 +148,10 @@ int main()
 		glClearColor(0.2f, 0.3f, 0.8f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 
-		float timeValue = glfwGetTime();
-		float greenValue = (sin(timeValue) * 0.5f) + 0.5f;
-		int vertexColorLocation = glGetUniformLocation(shaderProgram, "ourColor");
 		// 2. 当我们渲染一个物体时要使用着色器程序
 		glUseProgram(shaderProgram);
-
-		glUniform4f(vertexColorLocation, 0.0f, greenValue, 0.0f, 1.0f);
-
 		glBindVertexArray(VAO);
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+		glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
 		glBindVertexArray(0);
 
 		glfwSwapBuffers(window);
