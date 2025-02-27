@@ -82,9 +82,11 @@ int main()
 		#version 330 core
 		out vec4 FragColor;
 
+		uniform vec4 ourColor;
+
 		void main()
 		{
-			FragColor = vec4(1.0, 0.5, 0.2, 1.0);
+			FragColor = ourColor;
 		}
 	)";
 
@@ -139,8 +141,15 @@ int main()
 
 		glClearColor(0.2f, 0.3f, 0.8f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
+
+		float timeValue = glfwGetTime();
+		float greenValue = (sin(timeValue) * 0.5f) + 0.5f;
+		int vertexColorLocation = glGetUniformLocation(shaderProgram, "ourColor");
 		// 2. 当我们渲染一个物体时要使用着色器程序
 		glUseProgram(shaderProgram);
+
+		glUniform4f(vertexColorLocation, 0.0f, greenValue, 0.0f, 1.0f);
+
 		glBindVertexArray(VAO);
 		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 		glBindVertexArray(0);
