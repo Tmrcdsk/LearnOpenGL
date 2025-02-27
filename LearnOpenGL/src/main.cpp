@@ -3,6 +3,8 @@
 
 #include <iostream>
 
+#include <Shader.h>
+
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
 
@@ -71,75 +73,7 @@ int main()
 	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
 
-	const char* vertexShaderSrc = R"(
-		#version 330 core
-		layout (location = 0) in vec3 aPos;
-		layout (location = 1) in vec3 aColor;
-
-		out vec3 vColor;
-
-		void main()
-		{
-			gl_Position = vec4(aPos, 1.0);
-			vColor = aColor;
-		}
-	)";
-	const char* fragmentShaderSrc = R"(
-		#version 330 core
-		out vec4 FragColor;
-
-		in vec3 vColor;
-
-		void main()
-		{
-			FragColor = vec4(vColor, 1.0f);
-		}
-	)";
-
-	unsigned int vertexShader;
-	vertexShader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vertexShader, 1, &vertexShaderSrc, nullptr);
-	glCompileShader(vertexShader);
-
-#define SHADER_DEBUG
-#ifdef SHADER_DEBUG
-	int  success;
-	char infoLog[512];
-	glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-	if (!success)
-	{
-		glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-		std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
-	}
-#endif
-
-	unsigned int fragmentShader;
-	fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(fragmentShader, 1, &fragmentShaderSrc, nullptr);
-	glCompileShader(fragmentShader);
-
-#ifdef SHADER_DEBUG
-	glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-	if (!success)
-	{
-		glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-		std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
-	}
-#endif
-
-	unsigned int shaderProgram = glCreateProgram();
-	glAttachShader(shaderProgram, vertexShader);
-	glAttachShader(shaderProgram, fragmentShader);
-	glLinkProgram(shaderProgram);
-#ifdef SHADER_DEBUG
-	glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-	if (!success) {
-		glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-		std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
-	}
-#endif
-	glDeleteShader(vertexShader);
-	glDeleteShader(fragmentShader);
+	Shader shader("res/shaders/vertex.glsl", "res/shaders/fragment.glsl");
 
 	while (!glfwWindowShouldClose(window))
 	{
@@ -148,8 +82,9 @@ int main()
 		glClearColor(0.2f, 0.3f, 0.8f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 
-		// 2. 当我们渲染一个物体时要使用着色器程序
-		glUseProgram(shaderProgram);
+		// 在设置统一变量之前一定要先激活着色器程序
+		shader.Bind();
+		shader.SetUniformFloat3("uColor", 0.8f, 0.2f, 0.3f);
 		glBindVertexArray(VAO);
 		glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
 		glBindVertexArray(0);
@@ -159,7 +94,6 @@ int main()
 	}
 	glDeleteVertexArrays(1, &VAO);
 	glDeleteBuffers(1, &VBO);
-	glDeleteProgram(shaderProgram);
 
 	glfwTerminate();
 	return 0;
