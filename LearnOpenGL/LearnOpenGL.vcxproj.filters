@@ -13,21 +13,33 @@
     <Filter Include="src">
       <UniqueIdentifier>{2DAB880B-99B4-887C-2230-9F7C8E38947C}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\vendor">
+      <UniqueIdentifier>{EA4CE07F-D604-22CD-3F0C-FB282BE3BCBD}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\vendor\stb_image">
+      <UniqueIdentifier>{04AA27C1-F038-B18A-9957-C58585C5C130}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\Shader.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\vendor\stb_image\stb_image.h">
+      <Filter>src\vendor\stb_image</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Dependencies\Glad\src\glad.c">
       <Filter>Dependencies\Glad\src</Filter>
     </ClCompile>
+    <ClCompile Include="src\Shader.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="src\main.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="src\Shader.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="src\Shader.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="res\shaders\vertex.glsl" />
-    <None Include="res\shaders\fragment.glsl" />
+    <ClCompile Include="src\vendor\stb_image\stb_image.cpp">
+      <Filter>src\vendor\stb_image</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

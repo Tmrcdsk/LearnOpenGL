@@ -32,6 +32,7 @@ project "LearnOpenGL"
 	includedirs
 	{
 		"%{prj.name}/src",
+		"%{prj.name}/src/vendor",
 		"%{IncludeDir.GLFW}",
 		"%{IncludeDir.Glad}"
 	}
