@@ -2,6 +2,8 @@
 
 #include <string>
 
+#include <glm/glm.hpp>
+
 class Shader
 {
 public:
@@ -17,6 +19,8 @@ public:
 	void SetUniformFloat2(const std::string& name, float v0, float v1) const;
 	void SetUniformFloat3(const std::string& name, float v0, float v1, float v2) const;
 	void SetUniformFloat4(const std::string& name, float v0, float v1, float v2, float v3) const;
+	void SetUniformMat3(const std::string& name, glm::mat3& matrix) const;
+	void SetUniformMat4(const std::string& name, glm::mat4& matrix) const;
 private:
 	unsigned int m_RendererID;
 };
