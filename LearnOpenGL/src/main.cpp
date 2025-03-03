@@ -90,6 +90,19 @@ int main()
 		-0.5f,  0.5f, -0.5f,  0.0f, 1.0f
 	};
 
+	glm::vec3 cubePositions[] = {
+		glm::vec3(0.0f,  0.0f,  0.0f),
+		glm::vec3(2.0f,  5.0f, -15.0f),
+		glm::vec3(-1.5f, -2.2f, -2.5f),
+		glm::vec3(-3.8f, -2.0f, -12.3f),
+		glm::vec3(2.4f, -0.4f, -3.5f),
+		glm::vec3(-1.7f,  3.0f, -7.5f),
+		glm::vec3(1.3f, -2.0f, -2.5f),
+		glm::vec3(1.5f,  2.0f, -2.5f),
+		glm::vec3(1.5f,  0.2f, -1.5f),
+		glm::vec3(-1.3f,  1.0f, -1.5f)
+	};
+
 	unsigned int indices[36] = { 0 };
 	for (int i = 0; i < 36; ++i)
 		indices[i] = i;
@@ -183,9 +196,6 @@ int main()
 		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, texture2);
 
-		glm::mat4 model = glm::mat4(1.0f);
-		model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.5f, 1.0f, 0.0f));
-
 		glm::mat4 view = glm::mat4(1.0f);
 		// 观察矩阵的作用是将 *摄像机* 的移动转换为 *物体* 的移动，从而可以保持摄像机不变
 		// 在这里只是普通的 *变换矩阵*，实际上视图矩阵应该为 变换矩阵 的 *逆矩阵*
@@ -194,12 +204,18 @@ int main()
 		glm::mat4 projection = glm::mat4(1.0f);
 		projection = glm::perspective(glm::radians(45.0f), (float)Width / Height, 0.1f, 100.0f);
 
-		shader.SetUniformMat4("uModel", model);
 		shader.SetUniformMat4("uView", view);
 		shader.SetUniformMat4("uProjection", projection);
 
 		glBindVertexArray(VAO);
-		glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+		for (int i = 0; i < 10; ++i) {
+			glm::mat4 model = glm::translate(glm::mat4(1.0f), cubePositions[i]);
+			float angle = 20.0f * i;
+			model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
+			shader.SetUniformMat4("uModel", model);
+
+			glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+		}
 
 		glBindVertexArray(0);
 
