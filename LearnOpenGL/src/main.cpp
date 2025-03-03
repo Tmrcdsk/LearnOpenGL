@@ -18,6 +18,10 @@ void processInput(GLFWwindow* window);
 const unsigned int Width = 800;
 const unsigned int Height = 600;
 
+glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
+glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+
 int main()
 {
 	glfwInit();
@@ -183,15 +187,7 @@ int main()
 	shader.SetUniformInt("uTexture1", 0);
 	shader.SetUniformInt("uTexture2", 1);
 
-	glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
 
-	glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
-	glm::vec3 cameraDirection = glm::vec3(cameraPos - cameraTarget); // 注意：这里是摄像机看向方向的反方向（z轴向量）
-
-	glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
-	glm::vec3 cameraRight = glm::normalize(glm::cross(up, cameraDirection)); // x轴向量
-
-	glm::vec3 cameraUp = glm::normalize(glm::cross(cameraDirection, cameraRight)); // y轴向量
 
 	while (!glfwWindowShouldClose(window))
 	{
@@ -206,13 +202,8 @@ int main()
 		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, texture2);
 
-		float radius = 10.0f;
-		float camX = sin((float)glfwGetTime()) * radius;
-		float camZ = cos((float)glfwGetTime()) * radius;
 		glm::mat4 view;
-		view = glm::lookAt(glm::vec3(camX, 0.0f, camZ),
-							glm::vec3(0.0f, 0.0f, 0.0f),
-							glm::vec3(0.0f, 1.0f, 0.0f));
+		view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
 
 		glm::mat4 projection = glm::mat4(1.0f);
 		projection = glm::perspective(glm::radians(45.0f), (float)Width / Height, 0.1f, 100.0f);
@@ -246,6 +237,15 @@ void processInput(GLFWwindow* window)
 {
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
+	float cameraSpeed = 0.05f;
+	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+		cameraPos += cameraFront * cameraSpeed;
+	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+		cameraPos -= cameraFront * cameraSpeed;
+	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+		cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+		cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
 }
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
