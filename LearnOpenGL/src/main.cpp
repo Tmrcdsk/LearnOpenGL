@@ -183,6 +183,16 @@ int main()
 	shader.SetUniformInt("uTexture1", 0);
 	shader.SetUniformInt("uTexture2", 1);
 
+	glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
+
+	glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
+	glm::vec3 cameraDirection = glm::vec3(cameraPos - cameraTarget); // 注意：这里是摄像机看向方向的反方向（z轴向量）
+
+	glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+	glm::vec3 cameraRight = glm::normalize(glm::cross(up, cameraDirection)); // x轴向量
+
+	glm::vec3 cameraUp = glm::normalize(glm::cross(cameraDirection, cameraRight)); // y轴向量
+
 	while (!glfwWindowShouldClose(window))
 	{
 		processInput(window);
@@ -196,10 +206,13 @@ int main()
 		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, texture2);
 
-		glm::mat4 view = glm::mat4(1.0f);
-		// 观察矩阵的作用是将 *摄像机* 的移动转换为 *物体* 的移动，从而可以保持摄像机不变
-		// 在这里只是普通的 *变换矩阵*，实际上视图矩阵应该为 变换矩阵 的 *逆矩阵*
-		view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
+		float radius = 10.0f;
+		float camX = sin((float)glfwGetTime()) * radius;
+		float camZ = cos((float)glfwGetTime()) * radius;
+		glm::mat4 view;
+		view = glm::lookAt(glm::vec3(camX, 0.0f, camZ),
+							glm::vec3(0.0f, 0.0f, 0.0f),
+							glm::vec3(0.0f, 1.0f, 0.0f));
 
 		glm::mat4 projection = glm::mat4(1.0f);
 		projection = glm::perspective(glm::radians(45.0f), (float)Width / Height, 0.1f, 100.0f);
