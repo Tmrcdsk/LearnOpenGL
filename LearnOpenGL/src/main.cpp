@@ -130,8 +130,6 @@ int main()
 	glEnableVertexAttribArray(2);
 	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
 
-
-
 	Shader shader("res/shaders/vertex.glsl", "res/shaders/fragment.glsl");
 	shader.Bind();
 	// 通过使用glUniform1i设置每个采样器的方式告诉OpenGL每个着色器采样器属于哪个纹理单元
@@ -150,20 +148,22 @@ int main()
 		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, texture2);
 
-		// 注意：尽管在代码中我们先位移再旋转，实际的变换却是先应用旋转再是位移的
-		glm::mat4 trans = glm::mat4(1.0f);
-		trans = glm::translate(trans, glm::vec3(0.5f, -0.5f, 0.0f));
-		trans = glm::rotate(trans, (float)glfwGetTime(), glm::vec3(0.0, 0.0, 1.0));
-		shader.SetUniformMat4("uTransform", trans);
+		glm::mat4 model = glm::mat4(1.0f);
+		model = glm::rotate(model, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+
+		glm::mat4 view = glm::mat4(1.0f);
+		// 观察矩阵的作用是将 *摄像机* 的移动转换为 *物体* 的移动，从而可以保持摄像机不变
+		// 在这里只是普通的 *变换矩阵*，实际上视图矩阵应该为 变换矩阵 的 *逆矩阵*
+		view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
+
+		glm::mat4 projection = glm::mat4(1.0f);
+		projection = glm::perspective(glm::radians(45.0f), (float)Width / Height, 0.1f, 100.0f);
+
+		shader.SetUniformMat4("uModel", model);
+		shader.SetUniformMat4("uView", view);
+		shader.SetUniformMat4("uProjection", projection);
 
 		glBindVertexArray(VAO);
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-		trans = glm::mat4(1.0f);
-		trans = glm::translate(trans, glm::vec3(-0.5f, 0.5f, 0.0f));
-		float scaleAmount = sinf((float)glfwGetTime()); // sin函数值范围 [-1, 1]，所以可能出现图像翻转的现象
-		trans = glm::scale(trans, glm::vec3(scaleAmount, scaleAmount, 0.0f));
-		shader.SetUniformMat4("uTransform", trans);
 		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
 		glBindVertexArray(0);
