@@ -15,6 +15,9 @@
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
 
+void mouse_callback(GLFWwindow* window, double xpos, double ypos);
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
+
 const unsigned int Width = 800;
 const unsigned int Height = 600;
 
@@ -24,6 +27,12 @@ glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
 
 float deltaTime = 0.0f; // 当前帧与上一帧的时间差
 float lastFrame = 0.0f; // 上一帧的时间
+
+float lastX = Width / 2.0f, lastY = Height / 2.0f;
+float pitch = 0.0f, yaw = 0.0f;
+bool firstMouse = true;
+
+float fov = 45.0f;
 
 int main()
 {
@@ -45,6 +54,12 @@ int main()
 	}
 	glfwMakeContextCurrent(window);
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+	glfwSetCursorPosCallback(window, mouse_callback);
+	glfwSetScrollCallback(window, scroll_callback);
+
+	// 首先我们要告诉GLFW，它应该隐藏光标，并捕捉(Capture)它。
+	// 捕捉光标表示的是，如果焦点在你的程序上，光标应该停留在窗口中（除非程序失去焦点或者退出）。
+	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
 	// glad: load all OpenGL function pointers
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
@@ -211,7 +226,7 @@ int main()
 		view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
 
 		glm::mat4 projection = glm::mat4(1.0f);
-		projection = glm::perspective(glm::radians(45.0f), (float)Width / Height, 0.1f, 100.0f);
+		projection = glm::perspective(glm::radians(fov), (float)Width / Height, 0.1f, 100.0f);
 
 		shader.SetUniformMat4("uView", view);
 		shader.SetUniformMat4("uProjection", projection);
@@ -258,4 +273,47 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 	// make sure the viewport matches the new window dimensions; note that width and 
 	// height will be significantly larger than specified on retina displays.
 	glViewport(0, 0, width, height);
+}
+
+void mouse_callback(GLFWwindow* window, double xpos, double ypos)
+{
+	if (firstMouse)
+	{
+		lastX = xpos;
+		lastY = ypos;
+		firstMouse = false;
+	}
+
+	float xOffset = xpos - lastX;
+	float yOffset = lastY - ypos; // 注意这里是相反的，因为y坐标是从底部往顶部依次增大的
+	lastX = xpos;
+	lastY = ypos;
+
+	float sensitivity = 0.05f;
+	xOffset *= sensitivity;
+	yOffset *= sensitivity;
+
+	yaw += xOffset;
+	pitch += yOffset;
+
+	if (pitch > 89.0f)
+		pitch = 89.0f;
+	if (pitch < -89.0f)
+		pitch = -89.0f;
+
+	glm::vec3 front;
+	front.x = cos(glm::radians(pitch)) * cos(glm::radians(yaw));
+	front.y = sin(glm::radians(pitch));
+	front.z = cos(glm::radians(pitch)) * sin(glm::radians(yaw));
+	cameraFront = glm::normalize(front);
+}
+
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+{
+	if (fov >= 1.0f && fov <= 45.0f)
+		fov -= yoffset;
+	if (fov <= 1.0f)
+		fov = 1.0f;
+	if (fov >= 45.0f)
+		fov = 45.0f;
 }
