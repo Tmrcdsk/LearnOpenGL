@@ -152,6 +152,7 @@ int main()
 		lightShader.SetUniformFloat3("uObjectColor", 1.0f, 0.5f, 0.31f);
 		lightShader.SetUniformFloat3("uLightColor", 1.0f, 1.0f, 1.0f);
 		lightShader.SetUniformFloat3("uLightPos", lightPos);
+		lightShader.SetUniformFloat3("uViewPos", camera.Position);
 
 		glm::mat4 view = camera.GetViewMatrix();
 		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)Width / Height, 0.1f, 100.0f);
@@ -201,6 +202,10 @@ void processInput(GLFWwindow* window)
 		camera.ProcessKeyboard(LEFT, deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
 		camera.ProcessKeyboard(RIGHT, deltaTime);
+	if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
+		camera.ProcessKeyboard(UP, deltaTime);
+	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
+		camera.ProcessKeyboard(DOWN, deltaTime);
 }
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
