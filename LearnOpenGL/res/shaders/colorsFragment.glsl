@@ -6,5 +6,9 @@ uniform vec3 uLightColor;
 
 void main()
 {
-	FragColor = vec4(uLightColor * uObjectColor, 1.0);
+	float ambientStrength = 0.1;
+	vec3 ambient = ambientStrength * uLightColor;
+
+	vec3 result = ambient * uObjectColor;
+	FragColor = vec4(result, 1.0);
 }
