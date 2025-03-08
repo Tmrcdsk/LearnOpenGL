@@ -1,3 +1,7 @@
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_glfw.h"
+#include "imgui/imgui_impl_opengl3.h"
+
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
@@ -19,8 +23,8 @@ void processInput(GLFWwindow* window);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 
-const unsigned int Width = 800;
-const unsigned int Height = 600;
+const unsigned int Width = 1200;
+const unsigned int Height = 900;
 
 float deltaTime = 0.0f; // 当前帧与上一帧的时间差
 float lastFrame = 0.0f; // 上一帧的时间
@@ -57,6 +61,18 @@ int main()
 	// 首先我们要告诉GLFW，它应该隐藏光标，并捕捉(Capture)它。
 	// 捕捉光标表示的是，如果焦点在你的程序上，光标应该停留在窗口中（除非程序失去焦点或者退出）。
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+	// Setup Dear ImGui context
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO(); (void)io;
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+	// Setup Dear ImGui style
+	ImGui::StyleColorsDark();
+	// Setup Platform/Renderer backends
+	ImGui_ImplGlfw_InitForOpenGL(window, true);
+	ImGui_ImplOpenGL3_Init("#version 330");
 
 	// glad: load all OpenGL function pointers
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
@@ -148,11 +164,36 @@ int main()
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+		// Start the Dear ImGui frame
+		ImGui_ImplOpenGL3_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();
+
+		static float ambient = 0.1f;
+		static float diffuse = 1.0f;
+		static float specular = 0.5f;
+		{
+			ImGui::Begin("Params");
+			ImGui::Text("Phong Model");
+			ImGui::SliderFloat("ambient", &ambient, 0.0f, 1.0f);
+			ImGui::SliderFloat("diffuse", &diffuse, 0.0f, 1.0f);
+			ImGui::SliderFloat("specular", &specular, 0.0f, 1.0f);
+
+			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+			ImGui::End();
+		}
+		ImGui::Render();
+		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
 		lightShader.Bind();
 		lightShader.SetUniformFloat3("uObjectColor", 1.0f, 0.5f, 0.31f);
 		lightShader.SetUniformFloat3("uLightColor", 1.0f, 1.0f, 1.0f);
 		lightShader.SetUniformFloat3("uLightPos", lightPos);
 		lightShader.SetUniformFloat3("uViewPos", camera.Position);
+
+		lightShader.SetUniformFloat("uAmbientStrength", ambient);
+		lightShader.SetUniformFloat("uDiffuseStrength", diffuse);
+		lightShader.SetUniformFloat("uSpecularStrength", specular);
 
 		glm::mat4 view = camera.GetViewMatrix();
 		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)Width / Height, 0.1f, 100.0f);
@@ -185,6 +226,11 @@ int main()
 	glDeleteVertexArrays(1, &lightCubeVAO);
 	glDeleteBuffers(1, &VBO);
 
+	// Cleanup
+	ImGui_ImplOpenGL3_Shutdown();
+	ImGui_ImplGlfw_Shutdown();
+	ImGui::DestroyContext();
+
 	glfwTerminate();
 	return 0;
 }
@@ -206,6 +252,11 @@ void processInput(GLFWwindow* window)
 		camera.ProcessKeyboard(UP, deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
 		camera.ProcessKeyboard(DOWN, deltaTime);
+
+	if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS)
+		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+	else if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_RELEASE)
+		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 }
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
@@ -231,6 +282,9 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
 	float yOffset = lastY - ypos; // 注意这里是相反的，因为y坐标是从底部往顶部依次增大的
 	lastX = xpos;
 	lastY = ypos;
+
+	if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS)
+		return;
 
 	camera.ProcessMouseMovement(xOffset, yOffset);
 }
