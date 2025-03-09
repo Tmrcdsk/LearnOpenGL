@@ -198,6 +198,17 @@ int main()
 		lightShader.SetUniformFloat3("material.specular", specular);
 		lightShader.SetUniformFloat("material.shininess", shininess);
 
+		glm::vec3 lightColor;
+		lightColor.x = sin(glfwGetTime() * 2.0f);
+		lightColor.y = sin(glfwGetTime() * 0.7f);
+		lightColor.z = sin(glfwGetTime() * 1.3f);
+		glm::vec3 diffuseColor = lightColor * glm::vec3(0.5f); // 降低影响
+		glm::vec3 ambientColor = diffuseColor * glm::vec3(0.2f); // 很低的影响
+
+		lightShader.SetUniformFloat3("light.ambient", ambientColor);
+		lightShader.SetUniformFloat3("light.diffuse", diffuseColor);
+		lightShader.SetUniformFloat3("light.specular", 1.0f, 1.0f, 1.0f);
+
 		glm::mat4 view = camera.GetViewMatrix();
 		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)Width / Height, 0.1f, 100.0f);
 		lightShader.SetUniformMat4("uView", view);
