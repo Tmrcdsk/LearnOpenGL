@@ -169,15 +169,17 @@ int main()
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
-		static float ambient = 0.1f;
-		static float diffuse = 1.0f;
-		static float specular = 0.5f;
+		static glm::vec3 ambient(1.0f, 0.5f, 0.31f);
+		static glm::vec3 diffuse(1.0f, 0.5f, 0.31f);
+		static glm::vec3 specular(0.5f, 0.5f, 0.5f);
+		static float shininess = 32.0f;
 		{
 			ImGui::Begin("Params");
-			ImGui::Text("Phong Model");
-			ImGui::SliderFloat("ambient", &ambient, 0.0f, 1.0f);
-			ImGui::SliderFloat("diffuse", &diffuse, 0.0f, 1.0f);
-			ImGui::SliderFloat("specular", &specular, 0.0f, 1.0f);
+			ImGui::Text("Material");
+			ImGui::SliderFloat3("ambient", &ambient[0], 0.0f, 1.0f);
+			ImGui::SliderFloat3("diffuse", &diffuse[0], 0.0f, 1.0f);
+			ImGui::SliderFloat3("specular", &specular[0], 0.0f, 1.0f);
+			ImGui::SliderFloat("shininess", &shininess, 0.0f, 256.0f);
 
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 			ImGui::End();
@@ -191,9 +193,10 @@ int main()
 		lightShader.SetUniformFloat3("uLightPos", lightPos);
 		lightShader.SetUniformFloat3("uViewPos", camera.Position);
 
-		lightShader.SetUniformFloat("uAmbientStrength", ambient);
-		lightShader.SetUniformFloat("uDiffuseStrength", diffuse);
-		lightShader.SetUniformFloat("uSpecularStrength", specular);
+		lightShader.SetUniformFloat3("material.ambient", ambient);
+		lightShader.SetUniformFloat3("material.diffuse", diffuse);
+		lightShader.SetUniformFloat3("material.specular", specular);
+		lightShader.SetUniformFloat("material.shininess", shininess);
 
 		glm::mat4 view = camera.GetViewMatrix();
 		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)Width / Height, 0.1f, 100.0f);
