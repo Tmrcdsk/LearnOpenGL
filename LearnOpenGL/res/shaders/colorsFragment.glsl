@@ -3,12 +3,13 @@ out vec4 FragColor;
 
 in vec3 vFragPos;
 in vec3 vNormal;
+in vec2 vTexCoords;
 
 uniform vec3 uViewPos;
 
 struct Material {
-	vec3 ambient;
-	vec3 diffuse;
+	// 环境光颜色在几乎所有情况下都等于漫反射颜色，所以我们不需要将它们分开储存
+	sampler2D diffuse;
 	vec3 specular;
 	float shininess;
 };
@@ -25,13 +26,13 @@ uniform Light light;
 void main()
 {
 	// ambient
-	vec3 ambient = light.ambient * material.ambient;
+	vec3 ambient = light.ambient * vec3(texture(material.diffuse, vTexCoords));
 
 	// diffuse
 	vec3 normal = normalize(vNormal);
 	vec3 lightDir = normalize(light.position - vFragPos);
 	float diff = max(0.0, dot(normal, lightDir));
-	vec3 diffuse = light.diffuse * (material.diffuse * diff);
+	vec3 diffuse = light.diffuse * diff * vec3(texture(material.diffuse, vTexCoords));
 
 	// specular
 	vec3 viewDir = normalize(uViewPos - vFragPos);
