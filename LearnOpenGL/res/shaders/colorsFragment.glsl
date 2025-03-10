@@ -16,12 +16,15 @@ struct Material {
 uniform Material material;
 
 struct Light {
-	// vec3 position; // 使用定向光就不再需要了
-	vec3 direction;
+	vec3 position;
 
 	vec3 ambient;
 	vec3 diffuse;
 	vec3 specular;
+
+	float constant;
+	float linear;
+	float quadratic;
 };
 uniform Light light;
 
@@ -32,7 +35,7 @@ void main()
 
 	// diffuse
 	vec3 normal = normalize(vNormal);
-	vec3 lightDir = normalize(-light.direction); // lightDir: 从 片段 至 光源 的光线方向
+	vec3 lightDir = normalize(light.position - vFragPos);
 	float diff = max(0.0, dot(normal, lightDir));
 	vec3 diffuse = light.diffuse * diff * vec3(texture(material.diffuse, vTexCoords));
 
@@ -41,6 +44,13 @@ void main()
 	vec3 reflectDir = reflect(-lightDir, normal);
 	float spec = pow(max(0.0, dot(viewDir, reflectDir)), material.shininess);
 	vec3 specular = light.specular * spec * vec3(texture(material.specular, vTexCoords));
+
+	// attenuation
+	float distance = length(light.position - vFragPos);
+	float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * distance * distance);
+	ambient *= attenuation;
+	diffuse *= attenuation;
+	specular *= attenuation;
 
 	vec3 result = ambient + diffuse + specular;
 	FragColor = vec4(result, 1.0);
