@@ -20,6 +20,7 @@
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 unsigned int loadTexture(const char* path);
 
@@ -32,6 +33,7 @@ float lastFrame = 0.0f; // 上一帧的时间
 Camera camera(glm::vec3(0.0f, 0.0f, 6.0f));
 float lastX = Width / 2.0f, lastY = Height / 2.0f;
 bool firstMouse = true;
+bool rightMousePressed = false;
 
 glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
 
@@ -56,11 +58,8 @@ int main()
 	glfwMakeContextCurrent(window);
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 	glfwSetCursorPosCallback(window, mouse_callback);
+	glfwSetMouseButtonCallback(window, mouse_button_callback);
 	glfwSetScrollCallback(window, scroll_callback);
-
-	// 首先我们要告诉GLFW，它应该隐藏光标，并捕捉(Capture)它。
-	// 捕捉光标表示的是，如果焦点在你的程序上，光标应该停留在窗口中（除非程序失去焦点或者退出）。
-	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
 	// Setup Dear ImGui context
 	IMGUI_CHECKVERSION();
@@ -252,23 +251,20 @@ void processInput(GLFWwindow* window)
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
 	
-	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-		camera.ProcessKeyboard(FORWARD, deltaTime);
-	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-		camera.ProcessKeyboard(BACKWARD, deltaTime);
-	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-		camera.ProcessKeyboard(LEFT, deltaTime);
-	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-		camera.ProcessKeyboard(RIGHT, deltaTime);
-	if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
-		camera.ProcessKeyboard(UP, deltaTime);
-	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
-		camera.ProcessKeyboard(DOWN, deltaTime);
-
-	if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS)
-		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-	else if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_RELEASE)
-		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	if (rightMousePressed) {
+		if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+			camera.ProcessKeyboard(FORWARD, deltaTime);
+		if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+			camera.ProcessKeyboard(BACKWARD, deltaTime);
+		if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+			camera.ProcessKeyboard(LEFT, deltaTime);
+		if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+			camera.ProcessKeyboard(RIGHT, deltaTime);
+		if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
+			camera.ProcessKeyboard(UP, deltaTime);
+		if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
+			camera.ProcessKeyboard(DOWN, deltaTime);
+	}
 }
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
@@ -280,6 +276,9 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
 {
+	if (!rightMousePressed)
+		return;
+
 	float xpos = static_cast<float>(xposIn);
 	float ypos = static_cast<float>(yposIn);
 
@@ -295,10 +294,21 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
 	lastX = xpos;
 	lastY = ypos;
 
-	if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS)
-		return;
-
 	camera.ProcessMouseMovement(xOffset, yOffset);
+}
+
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
+	if (button == GLFW_MOUSE_BUTTON_RIGHT) {
+		if (action == GLFW_PRESS) {
+			rightMousePressed = true;
+			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+		}
+		else if (action == GLFW_RELEASE) {
+			rightMousePressed = false;
+			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+			firstMouse = true;
+		}
+	}
 }
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
