@@ -157,9 +157,11 @@ int main()
 	Shader lightCubeShader("res/shaders/lightCubeVertex.glsl", "res/shaders/lightCubeFragment.glsl");
 
 	unsigned int diffuseMap = loadTexture("res/textures/container2.png");
+	unsigned int specularMap = loadTexture("res/textures/container2_specular.png");
 	
 	lightShader.Bind();
 	lightShader.SetUniformInt("material.diffuse", 0);
+	lightShader.SetUniformInt("material.specular", 1);
 
 	while (!glfwWindowShouldClose(window))
 	{
@@ -182,7 +184,6 @@ int main()
 		{
 			ImGui::Begin("Params");
 			ImGui::Text("Material");
-			ImGui::DragFloat3("specular", &specular[0], 0.01f, 0.0f, 1.0f);
 			ImGui::DragFloat("shininess", &shininess, 1.0f, 0.0f, 256.0f);
 
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
@@ -195,7 +196,6 @@ int main()
 		lightShader.SetUniformFloat3("light.position", lightPos);
 		lightShader.SetUniformFloat3("uViewPos", camera.Position);
 
-		lightShader.SetUniformFloat3("material.specular", specular);
 		lightShader.SetUniformFloat("material.shininess", shininess);
 
 		lightShader.SetUniformFloat3("light.ambient", 0.2f, 0.2f, 0.2f);
@@ -212,6 +212,9 @@ int main()
 
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, diffuseMap);
+
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, specularMap);
 
 		glBindVertexArray(cubeVAO);
 		glDrawArrays(GL_TRIANGLES, 0, 36);
