@@ -188,9 +188,7 @@ int main()
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 		lightShader.Bind();
-		lightShader.SetUniformFloat3("uObjectColor", 1.0f, 0.5f, 0.31f);
-		lightShader.SetUniformFloat3("uLightColor", 1.0f, 1.0f, 1.0f);
-		lightShader.SetUniformFloat3("uLightPos", lightPos);
+		lightShader.SetUniformFloat3("light.position", lightPos);
 		lightShader.SetUniformFloat3("uViewPos", camera.Position);
 
 		lightShader.SetUniformFloat3("material.ambient", ambient);
@@ -199,9 +197,9 @@ int main()
 		lightShader.SetUniformFloat("material.shininess", shininess);
 
 		glm::vec3 lightColor;
-		lightColor.x = sin(glfwGetTime() * 2.0f);
-		lightColor.y = sin(glfwGetTime() * 0.7f);
-		lightColor.z = sin(glfwGetTime() * 1.3f);
+		lightColor.x = sinf(glfwGetTime() * 2.0f);
+		lightColor.y = sinf(glfwGetTime() * 0.7f);
+		lightColor.z = sinf(glfwGetTime() * 1.3f);
 		glm::vec3 diffuseColor = lightColor * glm::vec3(0.5f); // 降低影响
 		glm::vec3 ambientColor = diffuseColor * glm::vec3(0.2f); // 很低的影响
 
