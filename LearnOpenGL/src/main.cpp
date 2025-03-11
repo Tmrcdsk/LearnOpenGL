@@ -207,6 +207,7 @@ int main()
 		lightShader.SetUniformFloat3("light.position", camera.Position);
 		lightShader.SetUniformFloat3("light.direction", camera.Front);
 		lightShader.SetUniformFloat("light.cutOff", glm::cos(glm::radians(12.5f)));
+		lightShader.SetUniformFloat("light.outerCutOff", glm::cos(glm::radians(17.5f)));
 		lightShader.SetUniformFloat3("uViewPos", camera.Position);
 
 		lightShader.SetUniformFloat("material.shininess", shininess);
