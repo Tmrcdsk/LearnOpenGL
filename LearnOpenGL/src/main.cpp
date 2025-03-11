@@ -35,8 +35,6 @@ float lastX = Width / 2.0f, lastY = Height / 2.0f;
 bool firstMouse = true;
 bool rightMousePressed = false;
 
-glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
-
 int main()
 {
 	glfwInit();
@@ -206,7 +204,9 @@ int main()
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 		lightShader.Bind();
-		lightShader.SetUniformFloat3("light.position", lightPos);
+		lightShader.SetUniformFloat3("light.position", camera.Position);
+		lightShader.SetUniformFloat3("light.direction", camera.Front);
+		lightShader.SetUniformFloat("light.cutOff", glm::cos(glm::radians(12.5f)));
 		lightShader.SetUniformFloat3("uViewPos", camera.Position);
 
 		lightShader.SetUniformFloat("material.shininess", shininess);
@@ -245,16 +245,16 @@ int main()
 		}
 
 
-		lightCubeShader.Bind();
-		lightCubeShader.SetUniformMat4("uView", view);
-		lightCubeShader.SetUniformMat4("uProjection", projection);
-		model = glm::mat4(1.0f);
-		model = glm::translate(model, lightPos);
-		model = glm::scale(model, glm::vec3(0.2f));
-		lightCubeShader.SetUniformMat4("uModel", model);
+		//lightCubeShader.Bind();
+		//lightCubeShader.SetUniformMat4("uView", view);
+		//lightCubeShader.SetUniformMat4("uProjection", projection);
+		//model = glm::mat4(1.0f);
+		//model = glm::translate(model, lightPos);
+		//model = glm::scale(model, glm::vec3(0.2f));
+		//lightCubeShader.SetUniformMat4("uModel", model);
 
-		glBindVertexArray(lightCubeVAO);
-		glDrawArrays(GL_TRIANGLES, 0, 36);
+		//glBindVertexArray(lightCubeVAO);
+		//glDrawArrays(GL_TRIANGLES, 0, 36);
 
 
 		glfwSwapBuffers(window);
