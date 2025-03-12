@@ -12,6 +12,7 @@ outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 IncludeDir = {}
 IncludeDir["GLFW"] = "Dependencies/GLFW/include"
 IncludeDir["Glad"] = "Dependencies/Glad/include"
+IncludeDir["Assimp"] = "Dependencies/Assimp/include"
 
 project "LearnOpenGL"
 	location "LearnOpenGL"
@@ -34,16 +35,19 @@ project "LearnOpenGL"
 		"%{prj.name}/src",
 		"%{prj.name}/src/vendor",
 		"%{IncludeDir.GLFW}",
-		"%{IncludeDir.Glad}"
+		"%{IncludeDir.Glad}",
+		"%{IncludeDir.Assimp}"
 	}
 
 	libdirs
 	{
-		"Dependencies/GLFW/lib-vc2022"
+		"Dependencies/GLFW/lib-vc2022",
+		"Dependencies/Assimp/lib/Release"
 	}
 
 	links
     {
         "glfw3.lib",
-        "opengl32.lib"
+        "opengl32.lib",
+		"assimp-vc143-mt.lib"
     }
