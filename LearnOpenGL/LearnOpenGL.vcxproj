@@ -529,6 +529,10 @@
     <ClCompile Include="vendor\imgui\imgui_widgets.cpp" />
     <ClCompile Include="vendor\stb_image\stb_image.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="res\shaders\depthTestingFragment.glsl" />
+    <None Include="res\shaders\depthTestingVertex.glsl" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

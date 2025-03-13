@@ -1368,4 +1368,8 @@
       <Filter>vendor\stb_image</Filter>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="res\shaders\depthTestingVertex.glsl" />
+    <None Include="res\shaders\depthTestingFragment.glsl" />
+  </ItemGroup>
 </Project>
