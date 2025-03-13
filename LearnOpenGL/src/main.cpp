@@ -170,7 +170,6 @@ int main()
 	unsigned int floorTexture = loadTexture("res/textures/metal.png");
 
 	shader.Bind();
-	shader.SetUniformInt("uTexture1", 0);
 
 	// draw in wireframe
 	 //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -191,8 +190,12 @@ int main()
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
+		static float near = 0.1f;
+		static float far = 100.0f;
 		{
 			ImGui::Begin("Depth Test");
+			ImGui::DragFloat("near", &near, 0.01f, 0.01f, 20.0f);
+			ImGui::DragFloat("far", &far, 0.1f, 20.0f, 100.0f);
 
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 			ImGui::End();
@@ -203,9 +206,11 @@ int main()
 		shader.Bind();
 		glm::mat4 model = glm::mat4(1.0f);
 		glm::mat4 view = camera.GetViewMatrix();
-		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)Width / Height, 0.1f, 100.0f);
+		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)Width / Height, near, far);
 		shader.SetUniformMat4("uView", view);
 		shader.SetUniformMat4("uProjection", projection);
+		shader.SetUniformFloat("uNear", near);
+		shader.SetUniformFloat("uFar", far);
 
 		// cubes
 		glBindVertexArray(cubeVAO);
