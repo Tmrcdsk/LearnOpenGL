@@ -55,5 +55,5 @@ project "LearnOpenGL"
     {
         "glfw3.lib",
         "opengl32.lib",
-		"assimp-vc143-mt.lib"
+        "assimp-vc143-mt.lib"
     }
