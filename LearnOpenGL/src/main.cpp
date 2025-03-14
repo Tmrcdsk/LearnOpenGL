@@ -6,6 +6,7 @@
 #include <GLFW/glfw3.h>
 
 #include <iostream>
+#include <map>
 
 #include "Shader.h"
 #include "Camera.h"
@@ -196,7 +197,7 @@ int main()
 
 	// transparent vegetation locations
 	// --------------------------------
-	std::vector<glm::vec3> vegetation
+	std::vector<glm::vec3> windows
 	{
 		glm::vec3(-1.5f, 0.0f, -0.48f),
 		glm::vec3(1.5f, 0.0f, 0.51f),
@@ -218,6 +219,15 @@ int main()
 		lastFrame = currentTime;
 
 		processInput(window);
+
+		// sort the transparent windows before rendering
+		// ---------------------------------------------
+		std::map<float, glm::vec3> sorted;
+		for (unsigned int i = 0; i < windows.size(); ++i)
+		{
+			float distance = glm::length(camera.Position - windows[i]);
+			sorted[distance] = windows[i];
+		}
 
 		glClearColor(0.6627f, 0.6588f, 0.5961f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -260,13 +270,13 @@ int main()
 		model = glm::mat4(1.0f);
 		shader.SetUniformMat4("uModel", model);
 		glDrawArrays(GL_TRIANGLES, 0, 6);
-		// vegetation
+		// windows (from furthest to nearest)
 		glBindVertexArray(transparentVAO);
 		glBindTexture(GL_TEXTURE_2D, transparentTexture);
-		for (unsigned int i = 0; i < vegetation.size(); i++)
+		for (std::map<float, glm::vec3>::reverse_iterator it = sorted.rbegin(); it != sorted.rend(); ++it)
 		{
 			model = glm::mat4(1.0f);
-			model = glm::translate(model, vegetation[i]);
+			model = glm::translate(model, it->second);
 			shader.SetUniformMat4("uModel", model);
 			glDrawArrays(GL_TRIANGLES, 0, 6);
 		}
