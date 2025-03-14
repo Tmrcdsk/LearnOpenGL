@@ -185,11 +185,14 @@ int main()
 
 	glEnable(GL_DEPTH_TEST);
 
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 	Shader shader("res/shaders/blendingVertex.glsl", "res/shaders/blendingFragment.glsl");
 
 	unsigned int cubeTexture = loadTexture("res/textures/marble.jpg");
 	unsigned int floorTexture = loadTexture("res/textures/metal.png");
-	unsigned int transparentTexture = loadTexture("res/textures/grass.png");
+	unsigned int transparentTexture = loadTexture("res/textures/blending_transparent_window.png");
 
 	// transparent vegetation locations
 	// --------------------------------
