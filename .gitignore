@@ -3,4 +3,9 @@
 bin/
 bin-int/
 
+*.sln
 *.user
+*.vcxproj
+*.filters
+
+LearnOpenGL/imgui.ini
