@@ -1371,5 +1371,10 @@
   <ItemGroup>
     <None Include="res\shaders\depthTestingVertex.glsl" />
     <None Include="res\shaders\depthTestingFragment.glsl" />
+    <None Include="res\shaders\stencilSingleColorFrag.glsl" />
+    <None Include="res\shaders\stencilTestingFragment.glsl" />
+    <None Include="res\shaders\stencilTestingVertex.glsl" />
+    <None Include="res\shaders\blendingVertex.glsl" />
+    <None Include="res\shaders\blendingFragment.glsl" />
   </ItemGroup>
 </Project>
