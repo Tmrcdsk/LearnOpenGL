@@ -164,12 +164,18 @@ int main()
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS);
 
-	Shader shader("res/shaders/depthTestingVertex.glsl", "res/shaders/depthTestingFragment.glsl");
+	glEnable(GL_STENCIL_TEST);
+	glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+	glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+
+	Shader shader("res/shaders/stencilTestingVertex.glsl", "res/shaders/stencilTestingFragment.glsl");
+	Shader shaderSingleColor("res/shaders/stencilTestingVertex.glsl", "res/shaders/stencilSingleColorFrag.glsl");
 
 	unsigned int cubeTexture = loadTexture("res/textures/marble.jpg");
 	unsigned int floorTexture = loadTexture("res/textures/metal.png");
 
 	shader.Bind();
+	shader.SetUniformInt("uTexture1", 0);
 
 	// draw in wireframe
 	 //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -183,19 +189,15 @@ int main()
 		processInput(window);
 
 		glClearColor(0.6627f, 0.6588f, 0.5961f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 		// Start the Dear ImGui frame
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
-		static float near = 0.1f;
-		static float far = 100.0f;
 		{
 			ImGui::Begin("Depth Test");
-			ImGui::DragFloat("near", &near, 0.01f, 0.01f, 20.0f);
-			ImGui::DragFloat("far", &far, 0.1f, 20.0f, 100.0f);
 
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 			ImGui::End();
@@ -203,15 +205,30 @@ int main()
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-		shader.Bind();
+		shaderSingleColor.Bind();
 		glm::mat4 model = glm::mat4(1.0f);
 		glm::mat4 view = camera.GetViewMatrix();
-		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)Width / Height, near, far);
+		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)Width / Height, 0.1f, 100.0f);
+		shaderSingleColor.SetUniformMat4("uView", view);
+		shaderSingleColor.SetUniformMat4("uProjection", projection);
+
+		shader.Bind();
 		shader.SetUniformMat4("uView", view);
 		shader.SetUniformMat4("uProjection", projection);
-		shader.SetUniformFloat("uNear", near);
-		shader.SetUniformFloat("uFar", far);
 
+		// draw floor as normal, but don't write the floor to the stencil buffer, we only care about the containers. We set its mask to 0x00 to not write to the stencil buffer.
+		glStencilMask(0x00);
+		// floor
+		glBindVertexArray(planeVAO);
+		glBindTexture(GL_TEXTURE_2D, floorTexture);
+		shader.SetUniformMat4("uModel", glm::mat4(1.0f));
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+		glBindVertexArray(0);
+
+		// 1st. render pass, draw objects as normal, writing to the stencil buffer
+		// --------------------------------------------------------------------
+		glStencilFunc(GL_ALWAYS, 1, 0xFF);
+		glStencilMask(0xFF);
 		// cubes
 		glBindVertexArray(cubeVAO);
 		glActiveTexture(GL_TEXTURE0);
@@ -223,13 +240,33 @@ int main()
 		model = glm::translate(model, glm::vec3(2.0f, 0.0f, 0.0f));
 		shader.SetUniformMat4("uModel", model);
 		glDrawArrays(GL_TRIANGLES, 0, 36);
-		// floor
-		glBindVertexArray(planeVAO);
-		glBindTexture(GL_TEXTURE_2D, floorTexture);
-		shader.SetUniformMat4("uModel", glm::mat4(1.0f));
-		glDrawArrays(GL_TRIANGLES, 0, 6);
-		glBindVertexArray(0);
 
+		// 2nd. render pass: now draw slightly scaled versions of the objects, this time disabling stencil writing.
+		// Because the stencil buffer is now filled with several 1s. The parts of the buffer that are 1 are not drawn, thus only drawing 
+		// the objects' size differences, making it look like borders.
+		// -----------------------------------------------------------------------------------------------------------------------------
+		glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+		glStencilMask(0x00);
+		glDisable(GL_DEPTH_TEST); // 禁用深度测试，保证边框不会被地板所覆盖
+		shaderSingleColor.Bind();
+		float scale = 1.1f;
+		// cubes
+		glBindVertexArray(cubeVAO);
+		glBindTexture(GL_TEXTURE_2D, cubeTexture);
+		model = glm::mat4(1.0f);
+		model = glm::translate(model, glm::vec3(-1.0f, 0.0f, -1.0f));
+		model = glm::scale(model, glm::vec3(scale, scale, scale));
+		shaderSingleColor.SetUniformMat4("uModel", model);
+		glDrawArrays(GL_TRIANGLES, 0, 36);
+		model = glm::mat4(1.0f);
+		model = glm::translate(model, glm::vec3(2.0f, 0.0f, 0.0f));
+		model = glm::scale(model, glm::vec3(scale, scale, scale));
+		shaderSingleColor.SetUniformMat4("uModel", model);
+		glDrawArrays(GL_TRIANGLES, 0, 36);
+		glBindVertexArray(0);
+		glEnable(GL_DEPTH_TEST);
+		glStencilMask(0xFF);
+		glStencilFunc(GL_ALWAYS, 0, 0xFF);
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
