@@ -7,5 +7,7 @@ uniform sampler2D uScreenTexture;
 
 void main()
 {
-    FragColor = vec4(vec3(1.0 - texture(uScreenTexture, vTexCoords)), 1.0);
+    FragColor = texture(uScreenTexture, vTexCoords);
+    float average = (FragColor.r + FragColor.g + FragColor.b) / 3.0;
+    FragColor = vec4(average, average, average, 1.0);
 } 
