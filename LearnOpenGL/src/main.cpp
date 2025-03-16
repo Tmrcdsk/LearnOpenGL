@@ -245,23 +245,11 @@ int main()
 		glClearColor(0.6627f, 0.6588f, 0.5961f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		glDepthMask(GL_FALSE);
-		skyboxShader.Bind();
-		glm::mat4 model = glm::mat4(1.0f);
-		glm::mat4 view = glm::mat4(glm::mat3(camera.GetViewMatrix()));
-		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)Width / Height, 0.1f, 100.0f);
-		skyboxShader.SetUniformMat4("uView", view);
-		skyboxShader.SetUniformMat4("uProjection", projection);
-		// skybox cube
-		glBindVertexArray(skyboxVAO);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
-		glDrawArrays(GL_TRIANGLES, 0, 36);
-		glBindVertexArray(0);
-		glDepthMask(GL_TRUE);
-
+		// draw scene as normal
 		shader.Bind();
-		view = camera.GetViewMatrix();
+		glm::mat4 model = glm::mat4(1.0f);
+		glm::mat4 view = camera.GetViewMatrix();
+		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)Width / Height, 0.1f, 100.0f);
 		shader.SetUniformMat4("uModel", model);
 		shader.SetUniformMat4("uView", view);
 		shader.SetUniformMat4("uProjection", projection);
@@ -271,6 +259,20 @@ int main()
 		glBindTexture(GL_TEXTURE_2D, cubeTexture);
 		glDrawArrays(GL_TRIANGLES, 0, 36);
 		glBindVertexArray(0);
+
+		// draw skybox as last
+		glDepthFunc(GL_LEQUAL); // change depth function so depth test passes when values are equal to depth buffer's content
+		skyboxShader.Bind();
+		view = glm::mat4(glm::mat3(camera.GetViewMatrix())); // remove translation from the view matrix
+		skyboxShader.SetUniformMat4("uView", view);
+		skyboxShader.SetUniformMat4("uProjection", projection);
+		// skybox cube
+		glBindVertexArray(skyboxVAO);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
+		glDrawArrays(GL_TRIANGLES, 0, 36);
+		glBindVertexArray(0);
+		glDepthFunc(GL_LESS); // set depth function back to default
 
 
 		glfwSwapBuffers(window);
