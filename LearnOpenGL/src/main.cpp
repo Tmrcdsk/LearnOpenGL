@@ -26,8 +26,8 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 unsigned int loadTexture(const char* path);
 unsigned int loadCubemap(const std::vector<std::string>& faces);
 
-const unsigned int Width = 1200;
-const unsigned int Height = 900;
+unsigned int Width = 1200;
+unsigned int Height = 900;
 
 float deltaTime = 0.0f; // 当前帧与上一帧的时间差
 float lastFrame = 0.0f; // 上一帧的时间
@@ -318,6 +318,8 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 	// make sure the viewport matches the new window dimensions; note that width and 
 	// height will be significantly larger than specified on retina displays.
 	glViewport(0, 0, width, height);
+	Width = width;
+	Height = height;
 }
 
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
