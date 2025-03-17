@@ -101,7 +101,7 @@ int main()
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
 	glBindVertexArray(0);
 
-	Shader shader("res/shaders/geometryVs.glsl", "res/shaders/geometryFs.glsl");
+	Shader shader("res/shaders/geometryVs.glsl", "res/shaders/geometryFs.glsl", "res/shaders/geometryGs.glsl");
 
 	// draw in wireframe
 	 //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
