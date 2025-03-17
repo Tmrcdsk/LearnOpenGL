@@ -82,30 +82,10 @@ int main()
 
 	stbi_set_flip_vertically_on_load(true);
 
-	float points[] = {
-		-0.5f,  0.5f, 1.0f, 0.0f, 0.0f, // 左上
-		 0.5f,  0.5f, 0.0f, 1.0f, 0.0f, // 右上
-		 0.5f, -0.5f, 0.0f, 0.0f, 1.0f, // 右下
-		-0.5f, -0.5f, 1.0f, 1.0f, 0.0f  // 左下
-	};
-	
-	unsigned int VAO, VBO;
-	glGenVertexArrays(1, &VAO);
-	glBindVertexArray(VAO);
-
-	glGenBuffers(1, &VBO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(points), points, GL_STATIC_DRAW);
-	
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), 0);
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(2 * sizeof(float)));
-	glBindVertexArray(0);
-
 	glEnable(GL_DEPTH_TEST);
 
-	Shader shader("res/shaders/geometryVs.glsl", "res/shaders/geometryFs.glsl", "res/shaders/geometryGs.glsl");
+	Shader shader("res/shaders/9.3.geometry_shader_normals/defaultVs.glsl", "res/shaders/9.3.geometry_shader_normals/defaultFs.glsl");
+	Shader normalShader("res/shaders/9.3.geometry_shader_normals/normalVs.glsl", "res/shaders/9.3.geometry_shader_normals/normalFs.glsl", "res/shaders/9.3.geometry_shader_normals/normalGs.glsl");
 
 	Model ourModel("res/objects/backpack/backpack.obj");
 
@@ -145,16 +125,21 @@ int main()
 		shader.SetUniformMat4("uView", view);
 		shader.SetUniformMat4("uProjection", projection);
 
-		shader.SetUniformFloat("uTime", static_cast<float>(glfwGetTime()));
-
+		// draw model as usual
 		ourModel.Draw(shader);
+
+		// then draw model with normal visualizing geometry shader
+		normalShader.Bind();
+		normalShader.SetUniformMat4("uProjection", projection);
+		normalShader.SetUniformMat4("uView", view);
+		normalShader.SetUniformMat4("uModel", model);
+
+		ourModel.Draw(normalShader);
 
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
-	glDeleteVertexArrays(1, &VAO);
-	glDeleteBuffers(1, &VBO);
 
 	// Cleanup
 	ImGui_ImplOpenGL3_Shutdown();
