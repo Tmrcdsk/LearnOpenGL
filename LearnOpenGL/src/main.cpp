@@ -82,6 +82,26 @@ int main()
 
 	stbi_set_flip_vertically_on_load(true);
 
+	glm::vec2 translations[100];
+	int index = 0;
+	float offset = 0.1f;
+	for (int y = -10; y < 10; y += 2)
+	{
+		for (int x = -10; x < 10; x += 2)
+		{
+			glm::vec2 translation;
+			translation.x = (float)x / 10.0f + offset;
+			translation.y = (float)y / 10.0f + offset;
+			translations[index++] = translation;
+		}
+	}
+	
+	unsigned int instanceVBO;
+	glGenBuffers(1, &instanceVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec2) * 100, &translations[0], GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
 	float quadVertices[] = {
 		// Î»ÖÃ          // ÑÕÉ«
 		-0.05f,  0.05f,  1.0f, 0.0f, 0.0f,
@@ -102,28 +122,17 @@ int main()
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), 0);
 	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(2 * sizeof(float)));
+	// set instance data
+	glEnableVertexAttribArray(2);
+	glBindBuffer(GL_ARRAY_BUFFER, instanceVBO); // this attribute comes from a different vertex buffer
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glVertexAttribDivisor(2, 1); // tell OpenGL this is an instanced vertex attribute.
 
 	glEnable(GL_DEPTH_TEST);
 
 	Shader shader("res/shaders/10.1.instancing_quads/instancingVs.glsl", "res/shaders/10.1.instancing_quads/instancingFs.glsl");
 
-	glm::vec2 translations[100];
-	int index = 0;
-	float offset = 0.1f;
-	for (int y = -10; y < 10; y += 2)
-	{
-		for (int x = -10; x < 10; x += 2)
-		{
-			glm::vec2 translation;
-			translation.x = (float)x / 10.0f + offset;
-			translation.y = (float)y / 10.0f + offset;
-			translations[index++] = translation;
-		}
-	}
-
-	shader.Bind();
-	for (unsigned int i = 0; i < 100; i++)
-		shader.SetUniformFloat2(("offsets[" + std::to_string(i) + "]"), translations[i].x, translations[i].y);
 
 	// draw in wireframe
 	 //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -145,7 +154,7 @@ int main()
 		ImGui::NewFrame();
 
 		{
-			ImGui::Begin("Geometry Shader");
+			ImGui::Begin("Instancing");
 
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 			ImGui::End();
@@ -153,6 +162,7 @@ int main()
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
+		shader.Bind();
 		glBindVertexArray(VAO);
 		glDrawArraysInstanced(GL_TRIANGLES, 0, 6, 100);
 
