@@ -21,6 +21,7 @@ void build_house(vec4 position)
 	gl_Position = position + vec4( 0.2,  0.2, 0.0, 0.0); // ”“…œ
 	EmitVertex();
 	gl_Position = position + vec4( 0.0,  0.4, 0.0, 0.0); // ∂•≤ø
+	fColor = vec3(1.0, 1.0, 1.0);
 	EmitVertex();
 	EndPrimitive();
 }
