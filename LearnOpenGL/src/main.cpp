@@ -82,12 +82,48 @@ int main()
 
 	stbi_set_flip_vertically_on_load(true);
 
+	float quadVertices[] = {
+		// Î»ÖÃ          // ÑÕÉ«
+		-0.05f,  0.05f,  1.0f, 0.0f, 0.0f,
+		 0.05f, -0.05f,  0.0f, 1.0f, 0.0f,
+		-0.05f, -0.05f,  0.0f, 0.0f, 1.0f,
+
+		-0.05f,  0.05f,  1.0f, 0.0f, 0.0f,
+		 0.05f, -0.05f,  0.0f, 1.0f, 0.0f,
+		 0.05f,  0.05f,  0.0f, 1.0f, 1.0f
+	};
+	unsigned int VAO, VBO;
+	glGenVertexArrays(1, &VAO);
+	glBindVertexArray(VAO);
+	glGenBuffers(1, &VBO);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), 0);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(2 * sizeof(float)));
+
 	glEnable(GL_DEPTH_TEST);
 
-	Shader shader("res/shaders/9.3.geometry_shader_normals/defaultVs.glsl", "res/shaders/9.3.geometry_shader_normals/defaultFs.glsl");
-	Shader normalShader("res/shaders/9.3.geometry_shader_normals/normalVs.glsl", "res/shaders/9.3.geometry_shader_normals/normalFs.glsl", "res/shaders/9.3.geometry_shader_normals/normalGs.glsl");
+	Shader shader("res/shaders/10.1.instancing_quads/instancingVs.glsl", "res/shaders/10.1.instancing_quads/instancingFs.glsl");
 
-	Model ourModel("res/objects/backpack/backpack.obj");
+	glm::vec2 translations[100];
+	int index = 0;
+	float offset = 0.1f;
+	for (int y = -10; y < 10; y += 2)
+	{
+		for (int x = -10; x < 10; x += 2)
+		{
+			glm::vec2 translation;
+			translation.x = (float)x / 10.0f + offset;
+			translation.y = (float)y / 10.0f + offset;
+			translations[index++] = translation;
+		}
+	}
+
+	shader.Bind();
+	for (unsigned int i = 0; i < 100; i++)
+		shader.SetUniformFloat2(("offsets[" + std::to_string(i) + "]"), translations[i].x, translations[i].y);
 
 	// draw in wireframe
 	 //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -117,24 +153,8 @@ int main()
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)Width / (float)Height, 0.1f, 100.0f);
-		glm::mat4 view = camera.GetViewMatrix();
-		glm::mat4 model = glm::mat4(1.0f);
-		shader.Bind();
-		shader.SetUniformMat4("uModel", model);
-		shader.SetUniformMat4("uView", view);
-		shader.SetUniformMat4("uProjection", projection);
-
-		// draw model as usual
-		ourModel.Draw(shader);
-
-		// then draw model with normal visualizing geometry shader
-		normalShader.Bind();
-		normalShader.SetUniformMat4("uProjection", projection);
-		normalShader.SetUniformMat4("uView", view);
-		normalShader.SetUniformMat4("uModel", model);
-
-		ourModel.Draw(normalShader);
+		glBindVertexArray(VAO);
+		glDrawArraysInstanced(GL_TRIANGLES, 0, 6, 100);
 
 
 		glfwSwapBuffers(window);
