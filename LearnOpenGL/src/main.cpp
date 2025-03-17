@@ -83,10 +83,10 @@ int main()
 	//stbi_set_flip_vertically_on_load(true);
 
 	float points[] = {
-		-0.5f,  0.5f, // 左上
-		 0.5f,  0.5f, // 右上
-		 0.5f, -0.5f, // 右下
-		-0.5f, -0.5f  // 左下
+		-0.5f,  0.5f, 1.0f, 0.0f, 0.0f, // 左上
+		 0.5f,  0.5f, 0.0f, 1.0f, 0.0f, // 右上
+		 0.5f, -0.5f, 0.0f, 0.0f, 1.0f, // 右下
+		-0.5f, -0.5f, 1.0f, 1.0f, 0.0f  // 左下
 	};
 	
 	unsigned int VAO, VBO;
@@ -98,7 +98,9 @@ int main()
 	glBufferData(GL_ARRAY_BUFFER, sizeof(points), points, GL_STATIC_DRAW);
 	
 	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), 0);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(2 * sizeof(float)));
 	glBindVertexArray(0);
 
 	Shader shader("res/shaders/geometryVs.glsl", "res/shaders/geometryFs.glsl", "res/shaders/geometryGs.glsl");
