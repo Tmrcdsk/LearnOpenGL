@@ -22,6 +22,7 @@ public:
 	void SetUniformFloat4(const std::string& name, float v0, float v1, float v2, float v3) const;
 	void SetUniformMat3(const std::string& name, const glm::mat3& matrix) const;
 	void SetUniformMat4(const std::string& name, const glm::mat4& matrix) const;
+	void SetUniformBlock(const std::string& name, unsigned int uniformBlockIndex) const;
 private:
 	unsigned int m_RendererID;
 };
