@@ -82,89 +82,26 @@ int main()
 
 	//stbi_set_flip_vertically_on_load(true);
 
-	float cubeVertices[] = {
-		// positions
-		-0.5f, -0.5f, -0.5f,
-		 0.5f, -0.5f, -0.5f,
-		 0.5f,  0.5f, -0.5f,
-		 0.5f,  0.5f, -0.5f,
-		-0.5f,  0.5f, -0.5f,
-		-0.5f, -0.5f, -0.5f,
-
-		-0.5f, -0.5f,  0.5f,
-		 0.5f, -0.5f,  0.5f,
-		 0.5f,  0.5f,  0.5f,
-		 0.5f,  0.5f,  0.5f,
-		-0.5f,  0.5f,  0.5f,
-		-0.5f, -0.5f,  0.5f,
-
-		-0.5f,  0.5f,  0.5f,
-		-0.5f,  0.5f, -0.5f,
-		-0.5f, -0.5f, -0.5f,
-		-0.5f, -0.5f, -0.5f,
-		-0.5f, -0.5f,  0.5f,
-		-0.5f,  0.5f,  0.5f,
-
-		 0.5f,  0.5f,  0.5f,
-		 0.5f,  0.5f, -0.5f,
-		 0.5f, -0.5f, -0.5f,
-		 0.5f, -0.5f, -0.5f,
-		 0.5f, -0.5f,  0.5f,
-		 0.5f,  0.5f,  0.5f,
-
-		-0.5f, -0.5f, -0.5f,
-		 0.5f, -0.5f, -0.5f,
-		 0.5f, -0.5f,  0.5f,
-		 0.5f, -0.5f,  0.5f,
-		-0.5f, -0.5f,  0.5f,
-		-0.5f, -0.5f, -0.5f,
-
-		-0.5f,  0.5f, -0.5f,
-		 0.5f,  0.5f, -0.5f,
-		 0.5f,  0.5f,  0.5f,
-		 0.5f,  0.5f,  0.5f,
-		-0.5f,  0.5f,  0.5f,
-		-0.5f,  0.5f, -0.5f,
+	float points[] = {
+		-0.5f,  0.5f, // 左上
+		 0.5f,  0.5f, // 右上
+		 0.5f, -0.5f, // 右下
+		-0.5f, -0.5f  // 左下
 	};
-	// cube VAO
-	unsigned int cubeVAO, cubeVBO;
-	glGenVertexArrays(1, &cubeVAO);
-	glGenBuffers(1, &cubeVBO);
-	glBindVertexArray(cubeVAO);
-	glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), &cubeVertices, GL_STATIC_DRAW);
+	
+	unsigned int VAO, VBO;
+	glGenVertexArrays(1, &VAO);
+	glBindVertexArray(VAO);
+
+	glGenBuffers(1, &VBO);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(points), points, GL_STATIC_DRAW);
+	
 	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
+	glBindVertexArray(0);
 
-	glEnable(GL_DEPTH_TEST);
-
-	Shader shaderRed("res/shaders/advancedGlslVertex.glsl", "res/shaders/redFragment.glsl");
-	Shader shaderGreen("res/shaders/advancedGlslVertex.glsl", "res/shaders/greenFragment.glsl");
-	Shader shaderBlue("res/shaders/advancedGlslVertex.glsl", "res/shaders/blueFragment.glsl");
-	Shader shaderYellow("res/shaders/advancedGlslVertex.glsl", "res/shaders/yellowFragment.glsl");
-
-	// 不需要提前激活当前着色器
-	// 因为 Uniform Block Index 的设置是与 shader 程序对象直接关联的，而不是与当前激活的 shader 程序状态相关
-	shaderRed.SetUniformBlock("uMatrices", 0);
-	shaderGreen.SetUniformBlock("uMatrices", 0);
-	shaderBlue.SetUniformBlock("uMatrices", 0);
-	shaderYellow.SetUniformBlock("uMatrices", 0);
-
-	// create the uniform buffer
-	unsigned int uboMatrices;
-	glGenBuffers(1, &uboMatrices);
-	glBindBuffer(GL_UNIFORM_BUFFER, uboMatrices);
-	glBufferData(GL_UNIFORM_BUFFER, 2 * sizeof(glm::mat4), nullptr, GL_STATIC_DRAW);
-	glBindBuffer(GL_UNIFORM_BUFFER, 0);
-	// define the range of the buffer that links to a uniform binding point
-	glBindBufferRange(GL_UNIFORM_BUFFER, 0, uboMatrices, 0, 2 * sizeof(glm::mat4));
-
-	// store the projection matrix (we only do this once now) (note: we're not using zoom anymore by changing the FoV)
-	glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)Width / Height, 0.1f, 100.0f);
-	glBindBuffer(GL_UNIFORM_BUFFER, uboMatrices);
-	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), glm::value_ptr(projection));
-	glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
+	Shader shader("res/shaders/geometryVs.glsl", "res/shaders/geometryFs.glsl");
 
 	// draw in wireframe
 	 //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -191,49 +128,19 @@ int main()
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-		glClearColor(0.6627f, 0.6588f, 0.5961f, 1.0f);
+		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		// set the view and projection matrix in the uniform block - we only have to do this once per loop iteration.
-		glm::mat4 view = camera.GetViewMatrix();
-		glBindBuffer(GL_UNIFORM_BUFFER, uboMatrices);
-		glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(view));
-		glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
-		// draw 4 cubes 
-		// RED
-		glBindVertexArray(cubeVAO);
-		shaderRed.Bind();
-		glm::mat4 model = glm::mat4(1.0f);
-		model = glm::translate(model, glm::vec3(-0.75f, 0.75f, 0.0f)); // move top-left
-		shaderRed.SetUniformMat4("uModel", model);
-		glDrawArrays(GL_TRIANGLES, 0, 36);
-		// GREEN
-		shaderGreen.Bind();
-		model = glm::mat4(1.0f);
-		model = glm::translate(model, glm::vec3(0.75f, 0.75f, 0.0f)); // move top-right
-		shaderGreen.SetUniformMat4("uModel", model);
-		glDrawArrays(GL_TRIANGLES, 0, 36);
-		// BLUE
-		shaderBlue.Bind();
-		model = glm::mat4(1.0f);
-		model = glm::translate(model, glm::vec3(-0.75f, -0.75f, 0.0f)); // move bottom-left
-		shaderBlue.SetUniformMat4("uModel", model);
-		glDrawArrays(GL_TRIANGLES, 0, 36);
-		// YELLOW
-		shaderYellow.Bind();
-		model = glm::mat4(1.0f);
-		model = glm::translate(model, glm::vec3(0.75f, -0.75f, 0.0f)); // move bottom-right
-		shaderYellow.SetUniformMat4("uModel", model);
-		glDrawArrays(GL_TRIANGLES, 0, 36);
+		shader.Bind();
+		glBindVertexArray(VAO);
+		glDrawArrays(GL_POINTS, 0, 4);
 
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
-	glDeleteVertexArrays(1, &cubeVAO);
-	glDeleteBuffers(1, &cubeVBO);
-	glDeleteBuffers(1, &uboMatrices);
+	glDeleteVertexArrays(1, &VAO);
+	glDeleteBuffers(1, &VBO);
 
 	// Cleanup
 	ImGui_ImplOpenGL3_Shutdown();
