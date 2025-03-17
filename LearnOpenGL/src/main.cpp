@@ -80,7 +80,7 @@ int main()
 		return -1;
 	}
 
-	//stbi_set_flip_vertically_on_load(true);
+	stbi_set_flip_vertically_on_load(true);
 
 	float points[] = {
 		-0.5f,  0.5f, 1.0f, 0.0f, 0.0f, // ×óÉÏ
@@ -103,7 +103,11 @@ int main()
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(2 * sizeof(float)));
 	glBindVertexArray(0);
 
+	glEnable(GL_DEPTH_TEST);
+
 	Shader shader("res/shaders/geometryVs.glsl", "res/shaders/geometryFs.glsl", "res/shaders/geometryGs.glsl");
+
+	Model ourModel("res/objects/backpack/backpack.obj");
 
 	// draw in wireframe
 	 //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -116,13 +120,16 @@ int main()
 
 		processInput(window);
 
+		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 		// Start the Dear ImGui frame
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
 		{
-			ImGui::Begin("Uniform Buffer");
+			ImGui::Begin("Geometry Shader");
 
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 			ImGui::End();
@@ -130,12 +137,17 @@ int main()
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)Width / (float)Height, 0.1f, 100.0f);
+		glm::mat4 view = camera.GetViewMatrix();
+		glm::mat4 model = glm::mat4(1.0f);
 		shader.Bind();
-		glBindVertexArray(VAO);
-		glDrawArrays(GL_POINTS, 0, 4);
+		shader.SetUniformMat4("uModel", model);
+		shader.SetUniformMat4("uView", view);
+		shader.SetUniformMat4("uProjection", projection);
+
+		shader.SetUniformFloat("uTime", static_cast<float>(glfwGetTime()));
+
+		ourModel.Draw(shader);
 
 
 		glfwSwapBuffers(window);
