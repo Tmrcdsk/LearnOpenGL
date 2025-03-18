@@ -80,59 +80,44 @@ int main()
 		return -1;
 	}
 
-	stbi_set_flip_vertically_on_load(true);
-
-	glm::vec2 translations[100];
-	int index = 0;
-	float offset = 0.1f;
-	for (int y = -10; y < 10; y += 2)
-	{
-		for (int x = -10; x < 10; x += 2)
-		{
-			glm::vec2 translation;
-			translation.x = (float)x / 10.0f + offset;
-			translation.y = (float)y / 10.0f + offset;
-			translations[index++] = translation;
-		}
-	}
-	
-	unsigned int instanceVBO;
-	glGenBuffers(1, &instanceVBO);
-	glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec2) * 100, &translations[0], GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-	float quadVertices[] = {
-		// 位置          // 颜色
-		-0.05f,  0.05f,  1.0f, 0.0f, 0.0f,
-		 0.05f, -0.05f,  0.0f, 1.0f, 0.0f,
-		-0.05f, -0.05f,  0.0f, 0.0f, 1.0f,
-
-		-0.05f,  0.05f,  1.0f, 0.0f, 0.0f,
-		 0.05f, -0.05f,  0.0f, 1.0f, 0.0f,
-		 0.05f,  0.05f,  0.0f, 1.0f, 1.0f
-	};
-	unsigned int VAO, VBO;
-	glGenVertexArrays(1, &VAO);
-	glBindVertexArray(VAO);
-	glGenBuffers(1, &VBO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), 0);
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(2 * sizeof(float)));
-	// set instance data
-	glEnableVertexAttribArray(2);
-	glBindBuffer(GL_ARRAY_BUFFER, instanceVBO); // this attribute comes from a different vertex buffer
-	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glVertexAttribDivisor(2, 1); // tell OpenGL this is an instanced vertex attribute.
+	//stbi_set_flip_vertically_on_load(true);
 
 	glEnable(GL_DEPTH_TEST);
 
-	Shader shader("res/shaders/10.1.instancing_quads/instancingVs.glsl", "res/shaders/10.1.instancing_quads/instancingFs.glsl");
+	Shader shader("res/shaders/10.2.instancing/instancingVs.glsl", "res/shaders/10.2.instancing/instancingFs.glsl");
 
+	Model rock("res/objects/AsteroidField/rock/rock.obj");
+	Model planet("res/objects/AsteroidField/planet/planet.obj");
+
+	unsigned int amount = 1000;
+	glm::mat4* modelMatrices;
+	modelMatrices = new glm::mat4[amount];
+	srand(static_cast<unsigned int>(glfwGetTime())); // random seed
+	float radius = 50.0f;
+	float offset = 2.5f;
+	for (unsigned int i = 0; i < amount; ++i) {
+		glm::mat4 model = glm::mat4(1.0f);
+		// 1. 位移：分布在半径为 'radius' 的圆形上，偏移的范围是 [-offset, offset]
+		float angle = (float)i / amount * 360.0f;
+		float displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
+		float x = sin(angle) * radius + displacement;
+		displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
+		float y = displacement * 0.4f; // 让行星带的高度比x和z的宽度要小
+		displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
+		float z = cos(angle) * radius + displacement;
+		model = glm::translate(model, glm::vec3(x, y, z));
+
+		// 2. 缩放：在 0.05 和 0.25f 之间缩放
+		float scale = (rand() % 20) / 100.0f + 0.05f;
+		model = glm::scale(model, glm::vec3(scale));
+
+		// 3. 旋转：绕着一个（半）随机选择的旋转轴向量进行随机的旋转
+		float rotAngle = (rand() % 360);
+		model = glm::rotate(model, rotAngle, glm::vec3(0.4f, 0.6f, 0.8f));
+
+		// 4. 添加到矩阵的数组中
+		modelMatrices[i] = model;
+	}
 
 	// draw in wireframe
 	 //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -162,9 +147,25 @@ int main()
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
+		glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)Width / (float)Height, 0.1f, 1000.0f);
+		glm::mat4 view = camera.GetViewMatrix();
 		shader.Bind();
-		glBindVertexArray(VAO);
-		glDrawArraysInstanced(GL_TRIANGLES, 0, 6, 100);
+		shader.SetUniformMat4("uProjection", projection);
+		shader.SetUniformMat4("uView", view);
+
+		// draw planet
+		glm::mat4 model = glm::mat4(1.0f);
+		model = glm::translate(model, glm::vec3(0.0f, -3.0f, 0.0f));
+		model = glm::scale(model, glm::vec3(4.0f, 4.0f, 4.0f));
+		shader.SetUniformMat4("uModel", model);
+		planet.Draw(shader);
+
+		// draw meteorites
+		for (unsigned int i = 0; i < amount; i++)
+		{
+			shader.SetUniformMat4("uModel", modelMatrices[i]);
+			rock.Draw(shader);
+		}
 
 
 		glfwSwapBuffers(window);
