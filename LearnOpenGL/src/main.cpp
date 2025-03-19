@@ -23,7 +23,7 @@ void processInput(GLFWwindow* window);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
-unsigned int loadTexture(const char* path);
+unsigned int loadTexture(const char* path, bool gammaCorrection = false);
 unsigned int loadCubemap(const std::vector<std::string>& faces);
 
 unsigned int Width = 1200;
@@ -83,6 +83,8 @@ int main()
 	//stbi_set_flip_vertically_on_load(true);
 
 	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	float planeVertices[] = {
 		// positions            // normals         // texcoords
@@ -109,14 +111,28 @@ int main()
 	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
 	glBindVertexArray(0);
 
-	Shader shader("res/shaders/5.advanced_lighting/1.advanced_lighting/advancedLightingVs.glsl", "res/shaders/5.advanced_lighting/1.advanced_lighting/advancedLightingFs.glsl");
+	Shader shader("res/shaders/5.advanced_lighting/2.gamma_correction/gammaCorrectionVs.glsl", "res/shaders/5.advanced_lighting/2.gamma_correction/gammaCorrectionFs.glsl");
 
-	unsigned int floorTexture = loadTexture("res/textures/wood.png");
+	unsigned int floorTexture = loadTexture("res/textures/wood.png", false);
+	unsigned int floorTextureGammaCorrection = loadTexture("res/textures/wood.png", true);
 
 	shader.Bind();
 	shader.SetUniformInt("uFloorTexture", 0);
 	
-	glm::vec3 lightPos(0.0f, 0.0f, 0.0f);
+	// lighting info
+	// -------------
+	glm::vec3 lightPositions[] = {
+		glm::vec3(-3.0f, 0.0f, 0.0f),
+		glm::vec3(-1.0f, 0.0f, 0.0f),
+		glm::vec3(1.0f, 0.0f, 0.0f),
+		glm::vec3(3.0f, 0.0f, 0.0f)
+	};
+	glm::vec3 lightColors[] = {
+		glm::vec3(0.25),
+		glm::vec3(0.50),
+		glm::vec3(0.75),
+		glm::vec3(1.00)
+	};
 
 	// draw in wireframe
 	 //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -129,7 +145,7 @@ int main()
 
 		processInput(window);
 
-		static bool blinn = false;
+		static bool gamma = false;
 
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -139,13 +155,15 @@ int main()
 		glm::mat4 view = camera.GetViewMatrix();
 		shader.SetUniformMat4("uProjection", projection);
 		shader.SetUniformMat4("uView", view);
+
+		shader.SetUniformFloat3v("uLightPosition", lightPositions, 4);
+		shader.SetUniformFloat3v("uLightColor", lightColors, 4);
 		shader.SetUniformFloat3("uViewPos", camera.Position);
-		shader.SetUniformFloat3("uLightPos", lightPos);
-		shader.SetUniformInt("uBlinn", blinn);
+		shader.SetUniformInt("uGamma", gamma);
 		// floor
 		glBindVertexArray(planeVAO);
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, floorTexture);
+		glBindTexture(GL_TEXTURE_2D, gamma ? floorTextureGammaCorrection : floorTexture);
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 
 
@@ -155,8 +173,8 @@ int main()
 		ImGui::NewFrame();
 
 		{
-			ImGui::Begin("Blinn-Phong");
-			ImGui::Checkbox("Blinn", &blinn);
+			ImGui::Begin("Gamma Correction");
+			ImGui::Checkbox("Gamma", &gamma);
 
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 			ImGui::End();
@@ -249,27 +267,32 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 	camera.ProcessMouseScroll(static_cast<float>(yoffset));
 }
 
-unsigned int loadTexture(const char* path) {
+unsigned int loadTexture(const char* path, bool gammaCorrection) {
 	unsigned int textureID;
 	glGenTextures(1, &textureID);
 
 	int width, height, channels;
 	unsigned char* data = stbi_load(path, &width, &height, &channels, 0);
 	if (data) {
-		GLenum format;
+		GLenum internalFormat;
+		GLenum dataFormat;
 		if (channels == 1)
-			format = GL_RED;
-		else if (channels == 3)
-			format = GL_RGB;
-		else if (channels == 4)
-			format = GL_RGBA;
+			internalFormat = dataFormat = GL_RED;
+		else if (channels == 3) {
+			internalFormat = gammaCorrection ? GL_SRGB : GL_RGB;
+			dataFormat = GL_RGB;
+		}
+		else if (channels == 4) {
+			internalFormat = gammaCorrection ? GL_SRGB_ALPHA : GL_RGBA;
+			dataFormat = GL_RGBA;
+		}
 
 		glBindTexture(GL_TEXTURE_2D, textureID);
-		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+		glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, dataFormat, GL_UNSIGNED_BYTE, data);
 		glGenerateMipmap(GL_TEXTURE_2D);
 
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, format == GL_RGBA ? GL_CLAMP_TO_EDGE : GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, format == GL_RGBA ? GL_CLAMP_TO_EDGE : GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
