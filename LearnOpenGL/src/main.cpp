@@ -117,6 +117,7 @@ int main()
 	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
 	glBindVertexArray(0);
 
+	Shader shader("res/shaders/5.advanced_lighting/3.1.2.shadow_mapping_base/shadowMappingVs.glsl", "res/shaders/5.advanced_lighting/3.1.2.shadow_mapping_base/shadowMappingFs.glsl");
 	Shader simpleDepthShader("res/shaders/5.advanced_lighting/3.1.1.shadow_mapping_depth/shadowMappingDepthVs.glsl", "res/shaders/5.advanced_lighting/3.1.1.shadow_mapping_depth/shadowMappingDepthFs.glsl");
 	Shader debugDepthQuad("res/shaders/5.advanced_lighting/3.1.1.shadow_mapping_depth/debugQuadDepthVs.glsl", "res/shaders/5.advanced_lighting/3.1.1.shadow_mapping_depth/debugQuadDepthFs.glsl");
 
@@ -143,7 +144,9 @@ int main()
 	glReadBuffer(GL_NONE);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-
+	shader.Bind();
+	shader.SetUniformInt("uDiffuseTexture", 0);
+	shader.SetUniformInt("uShadowMap", 1);
 	debugDepthQuad.Bind();
 	debugDepthQuad.SetUniformInt("uDebugMap", 0);
 	
@@ -189,6 +192,23 @@ int main()
 		glViewport(0, 0, Width, Height);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+		// 2. render scene as normal using the generated depth/shadow map
+		// --------------------------------------------------------------
+		shader.Bind();
+		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)Width / (float)Height, 0.1f, 100.0f);
+		glm::mat4 view = camera.GetViewMatrix();
+		shader.SetUniformMat4("uProjection", projection);
+		shader.SetUniformMat4("uView", view);
+		// set light uniforms
+		shader.SetUniformFloat3("uViewPos", camera.Position);
+		shader.SetUniformFloat3("uLightPos", lightPos);
+		shader.SetUniformMat4("uLightSpaceMatrix", lightSpaceMatrix);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, woodTexture);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, depthMap);
+		renderScene(shader);
+
 		// render Depth map to quad for visual debugging
 		// ---------------------------------------------
 		debugDepthQuad.Bind();
@@ -196,7 +216,7 @@ int main()
 		debugDepthQuad.SetUniformFloat("uFarPlane", far_plane);
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, depthMap);
-		renderQuad();
+		//renderQuad();
 
 
 		// Start the Dear ImGui frame
