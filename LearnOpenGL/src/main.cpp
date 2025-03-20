@@ -148,7 +148,7 @@ int main()
 	shader.SetUniformInt("uDiffuseTexture", 0);
 	shader.SetUniformInt("uShadowMap", 1);
 	debugDepthQuad.Bind();
-	debugDepthQuad.SetUniformInt("uDebugMap", 0);
+	debugDepthQuad.SetUniformInt("uDepthMap", 0);
 	
 	// lighting info
 	// -------------
