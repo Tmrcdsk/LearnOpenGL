@@ -167,6 +167,8 @@ int main()
 
 		processInput(window);
 
+		static bool shadows = true;
+
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -205,6 +207,8 @@ int main()
 		shader.SetUniformFloat3("uViewPos", camera.Position);
 		shader.SetUniformFloat3("uLightPos", lightPos);
 		shader.SetUniformMat4("uLightSpaceMatrix", lightSpaceMatrix);
+
+		shader.SetUniformInt("uShadows", shadows);
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, woodTexture);
 		glActiveTexture(GL_TEXTURE1);
@@ -227,7 +231,8 @@ int main()
 		ImGui::NewFrame();
 
 		{
-			ImGui::Begin("Shadow Mapping Depth");
+			ImGui::Begin("Shadow Mapping PCF");
+			ImGui::Checkbox("Shadows", &shadows);
 
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 			ImGui::End();
