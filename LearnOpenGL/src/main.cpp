@@ -90,11 +90,11 @@ int main()
 
 	glEnable(GL_DEPTH_TEST);
 
-	Shader shader("res/shaders/5.advanced_lighting/5.1.parallax_mapping/parallaxMappingVs.glsl", "res/shaders/5.advanced_lighting/5.1.parallax_mapping/parallaxMappingFs.glsl");
+	Shader shader("res/shaders/5.advanced_lighting/5.1.parallax_mapping/parallaxMappingVs.glsl", "res/shaders/5.advanced_lighting/5.2.steep_parallax_mapping/parallaxMappingFs.glsl");
 
-	unsigned int diffuseMap = loadTexture("res/textures/bricks2.jpg");
-	unsigned int normalMap = loadTexture("res/textures/bricks2_normal.jpg");
-	unsigned int heightMap = loadTexture("res/textures/bricks2_disp.jpg");
+	unsigned int diffuseMap = loadTexture("res/textures/wood.png");
+	unsigned int normalMap = loadTexture("res/textures/toy_box_normal.png");
+	unsigned int heightMap = loadTexture("res/textures/toy_box_disp.png");
 
 	shader.Bind();
 	shader.SetUniformInt("uDiffuseMap", 0);
@@ -128,7 +128,7 @@ int main()
 		shader.SetUniformMat4("uView", view);
 		// render normal-mapped quad
 		glm::mat4 model = glm::mat4(1.0f);
-		//model = glm::rotate(model, glm::radians((float)glfwGetTime() * -10.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0))); // rotate the quad to show normal mapping from multiple directions
+		model = glm::rotate(model, glm::radians((float)glfwGetTime() * -10.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0))); // rotate the quad to show normal mapping from multiple directions
 		shader.SetUniformMat4("uModel", model);
 		shader.SetUniformFloat3("uViewPos", camera.Position);
 		shader.SetUniformFloat3("uLightPos", lightPos);
