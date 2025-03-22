@@ -90,7 +90,7 @@ int main()
 
 	glEnable(GL_DEPTH_TEST);
 
-	Shader shader("res/shaders/5.advanced_lighting/5.1.parallax_mapping/parallaxMappingVs.glsl", "res/shaders/5.advanced_lighting/5.2.steep_parallax_mapping/parallaxMappingFs.glsl");
+	Shader shader("res/shaders/5.advanced_lighting/5.1.parallax_mapping/parallaxMappingVs.glsl", "res/shaders/5.advanced_lighting/5.3.parallax_occlusion_mapping/parallaxMappingFs.glsl");
 
 	unsigned int diffuseMap = loadTexture("res/textures/wood.png");
 	unsigned int normalMap = loadTexture("res/textures/toy_box_normal.png");
