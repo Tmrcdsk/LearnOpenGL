@@ -21,9 +21,9 @@ float ShadowCalculation(vec3 fragPos)
 	// get vector between fragment position and light position
 	vec3 fragToLight = fragPos - uLightPos;
 	// ise the fragment to light vector to sample from the depth map
-	float closestDepth = texture(uDepthMap, fragToLight).r;
+	// float closestDepth = texture(uDepthMap, fragToLight).r;
 	// it is currently in linear range between [0,1], let's re-transform it back to original depth value
-	closestDepth *= uFarPlane;
+	// closestDepth *= uFarPlane;
 	// now get current linear depth as the length between the fragment and light position
 	float currentDepth = length(fragToLight);
 	// display closestDepth as debug (to visualize depth cubemap)
@@ -45,7 +45,7 @@ float ShadowCalculation(vec3 fragPos)
 	for (int i = 0; i < samples; ++i)
 	{
 		float closestDepth = texture(uDepthMap, fragToLight + sampleOffsetDirections[i] * diskRadius).r;
-		closestDepth *= uFarPlane;
+		closestDepth *= uFarPlane; // undo mapping [0;1]
 		if (currentDepth - bias > closestDepth)
 			shadow += 1.0;
 	}
