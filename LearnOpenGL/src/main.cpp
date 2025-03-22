@@ -89,43 +89,19 @@ int main()
 	//stbi_set_flip_vertically_on_load(true);
 
 	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_CULL_FACE);
 
-	Shader shader("res/shaders/5.advanced_lighting/3.2.1.point_shadows/pointShadowsVs.glsl", "res/shaders/5.advanced_lighting/3.2.1.point_shadows/pointShadowsFs.glsl");
-	Shader simpleDepthShader("res/shaders/5.advanced_lighting/3.2.1.point_shadows/pointShadowsDepthVs.glsl", "res/shaders/5.advanced_lighting/3.2.1.point_shadows/pointShadowsDepthFs.glsl", "res/shaders/5.advanced_lighting/3.2.1.point_shadows/pointShadowsDepthGs.glsl");
+	Shader shader("res/shaders/5.advanced_lighting/4.normal_mapping/normalMappingVs.glsl", "res/shaders/5.advanced_lighting/4.normal_mapping/normalMappingFs.glsl");
 
-	unsigned int woodTexture = loadTexture("res/textures/wood.png");
-
-	// configure depth map FBO
-	// -----------------------
-	const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
-	unsigned int depthMapFBO;
-	glGenFramebuffers(1, &depthMapFBO);
-	// create depth texture
-	unsigned int depthCubemap;
-	glGenTextures(1, &depthCubemap);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
-	for (unsigned int i = 0; i < 6; ++i)
-		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-	// attach depth texture as FBO's depth buffer
-	glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthCubemap, 0);
-	glDrawBuffer(GL_NONE);
-	glReadBuffer(GL_NONE);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	unsigned int diffuseMap = loadTexture("res/textures/brickwall.jpg");
+	unsigned int normalMap = loadTexture("res/textures/brickwall_normal.jpg");
 
 	shader.Bind();
-	shader.SetUniformInt("uDiffuseTexture", 0);
-	shader.SetUniformInt("uDepthMap", 1);
+	shader.SetUniformInt("uDiffuseMap", 0);
+	shader.SetUniformInt("uNormalMap", 1);
 	
 	// lighting info
 	// -------------
-	glm::vec3 lightPos(0.0f, 0.0f, 0.0f);
+	glm::vec3 lightPos(0.5f, 1.0f, 0.3f);
 
 	// draw in wireframe
 	 //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -138,59 +114,32 @@ int main()
 
 		processInput(window);
 
-		// move light position over time
-		//lightPos.z = static_cast<float>(sin(glfwGetTime() * 0.5) * 3.0);
-
-		static bool shadows = true;
-
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		// 0. create depth cubemap transformation matrices
-		// -----------------------------------------------
-		float near_plane = 1.0f;
-		float far_plane = 25.0f;
-		glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), (float)SHADOW_WIDTH / (float)SHADOW_HEIGHT, near_plane, far_plane); // !!!!!!!!!!这里是 `阴影贴图分辨率的宽高比` ，而不是整个场景的宽高比!!!!!!!!!!
-		std::vector<glm::mat4> shadowTransforms;
-		shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f)));
-		shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f)));
-		shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f)));
-		shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f)));
-		shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f)));
-		shadowTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, -1.0f, 0.0f)));
-
-		// 1. render depth of scene to texture (from light's perspective)
-		// --------------------------------------------------------------
-		glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
-		glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-			glClear(GL_DEPTH_BUFFER_BIT);
-			simpleDepthShader.Bind();
-			for (unsigned int i = 0; i < 6; ++i)
-				simpleDepthShader.SetUniformMat4("uShadowMatrices[" + std::to_string(i) + "]", shadowTransforms[i]);
-			simpleDepthShader.SetUniformFloat("uFarPlane", far_plane);
-			simpleDepthShader.SetUniformFloat3("uLightPos", lightPos);
-			renderScene(simpleDepthShader);
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-		// 2. render scene as normal using the generated depth/shadow map
-		// --------------------------------------------------------------
-		glViewport(0, 0, Width, Height);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		shader.Bind();
 		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)Width / (float)Height, 0.1f, 100.0f);
 		glm::mat4 view = camera.GetViewMatrix();
+		shader.Bind();
 		shader.SetUniformMat4("uProjection", projection);
 		shader.SetUniformMat4("uView", view);
-		// set light uniforms
+		// render normal-mapped quad
+		glm::mat4 model = glm::mat4(1.0f);
+		model = glm::rotate(model, glm::radians((float)glfwGetTime() * -10.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0))); // rotate the quad to show normal mapping from multiple directions
+		shader.SetUniformMat4("uModel", model);
 		shader.SetUniformFloat3("uViewPos", camera.Position);
 		shader.SetUniformFloat3("uLightPos", lightPos);
-		shader.SetUniformFloat("uFarPlane", far_plane);
-		shader.SetUniformInt("uShadows", shadows);
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, woodTexture);
+		glBindTexture(GL_TEXTURE_2D, diffuseMap);
 		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap); // 注意这里是 GL_TEXTURE_CUBE_MAP，而不是 GL_TEXTURE_2D
-		renderScene(shader);
+		glBindTexture(GL_TEXTURE_2D, normalMap);
+		renderQuad();
+
+		// render light source (simply re-renders a smaller plane at the light's position for debugging/visualization)
+		model = glm::mat4(1.0f);
+		model = glm::translate(model, lightPos);
+		model = glm::scale(model, glm::vec3(0.1f));
+		shader.SetUniformMat4("model", model);
+		renderQuad();
 
 
 		// Start the Dear ImGui frame
@@ -199,8 +148,7 @@ int main()
 		ImGui::NewFrame();
 
 		{
-			ImGui::Begin("Point Shadows");
-			ImGui::Checkbox("Shadows", &shadows);
+			ImGui::Begin("Normal Mapping");
 
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 			ImGui::End();
@@ -368,122 +316,6 @@ unsigned int loadCubemap(const std::vector<std::string>& faces)
 	return textureID;
 }
 
-// renders the 3D scene
-// --------------------
-void renderScene(const Shader& shader)
-{
-	// room cube
-	glm::mat4 model = glm::mat4(1.0f);
-	model = glm::scale(model, glm::vec3(5.0f));
-	shader.SetUniformMat4("uModel", model);
-	glDisable(GL_CULL_FACE); // note that we disable culling here since we render 'inside' the cube instead of the usual 'outside' which throws off the normal culling methods.
-	shader.SetUniformInt("uReverseNormals", 1); // A small little hack to invert normals when drawing cube from the inside so lighting still works.
-	renderCube();
-	shader.SetUniformInt("uReverseNormals", 0); // and of course disable it
-	glEnable(GL_CULL_FACE);
-	// cubes
-	model = glm::mat4(1.0f);
-	model = glm::translate(model, glm::vec3(4.0f, -3.5f, 0.0));
-	model = glm::scale(model, glm::vec3(0.5f));
-	shader.SetUniformMat4("uModel", model);
-	renderCube();
-	model = glm::mat4(1.0f);
-	model = glm::translate(model, glm::vec3(2.0f, 3.0f, 1.0));
-	model = glm::scale(model, glm::vec3(0.75f));
-	shader.SetUniformMat4("uModel", model);
-	renderCube();
-	model = glm::mat4(1.0f);
-	model = glm::translate(model, glm::vec3(-3.0f, -1.0f, 0.0));
-	model = glm::scale(model, glm::vec3(0.5f));
-	shader.SetUniformMat4("uModel", model);
-	renderCube();
-	model = glm::mat4(1.0f);
-	model = glm::translate(model, glm::vec3(-1.5f, 1.0f, 1.5));
-	model = glm::scale(model, glm::vec3(0.5f));
-	shader.SetUniformMat4("uModel", model);
-	renderCube();
-	model = glm::mat4(1.0f);
-	model = glm::translate(model, glm::vec3(-1.5f, 2.0f, -3.0));
-	model = glm::rotate(model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
-	model = glm::scale(model, glm::vec3(0.75f));
-	shader.SetUniformMat4("uModel", model);
-	renderCube();
-}
-
-// renderCube() renders a 1x1 3D cube in NDC.
-// -------------------------------------------------
-unsigned int cubeVAO = 0;
-unsigned int cubeVBO = 0;
-void renderCube()
-{
-	// initialize (if necessary)
-	if (cubeVAO == 0) {
-		float vertices[] = {
-			// back face
-			-1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
-			 1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
-			 1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 0.0f, // bottom-right         
-			 1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
-			-1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
-			-1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 1.0f, // top-left
-			// front face
-			-1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
-			 1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 0.0f, // bottom-right
-			 1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
-			 1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
-			-1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 1.0f, // top-left
-			-1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
-			// left face
-			-1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
-			-1.0f,  1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-left
-			-1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
-			-1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
-			-1.0f, -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-right
-			-1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
-			// right face
-			 1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
-			 1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
-			 1.0f,  1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-right         
-			 1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
-			 1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
-			 1.0f, -1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-left     
-			 // bottom face
-			 -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
-			  1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 1.0f, // top-left
-			  1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
-			  1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
-			 -1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 0.0f, // bottom-right
-			 -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
-			 // top face
-			 -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
-			  1.0f,  1.0f , 1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
-			  1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 1.0f, // top-right     
-			  1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
-			 -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
-			 -1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f  // bottom-left        
-		};
-		glGenVertexArrays(1, &cubeVAO);
-		glGenBuffers(1, &cubeVBO);
-		// fill buffer
-		glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-		// link vertex attributes
-		glBindVertexArray(cubeVAO);
-		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-		glEnableVertexAttribArray(1);
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-		glEnableVertexAttribArray(2);
-		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		glBindVertexArray(0);
-	}
-	// render Cube
-	glBindVertexArray(cubeVAO);
-	glDrawArrays(GL_TRIANGLES, 0, 36);
-	glBindVertexArray(0);
-}
-
 // renderQuad() renders a 1x1 XY quad in NDC
 // -----------------------------------------
 unsigned int quadVAO = 0;
@@ -491,25 +323,84 @@ unsigned int quadVBO;
 void renderQuad()
 {
 	if (quadVAO == 0) {
+		// positions
+		glm::vec3 pos1(-1.0f, 1.0f, 0.0f);
+		glm::vec3 pos2(-1.0f, -1.0f, 0.0f);
+		glm::vec3 pos3(1.0f, -1.0f, 0.0f);
+		glm::vec3 pos4(1.0f, 1.0f, 0.0f);
+		// texture coordinates
+		glm::vec2 uv1(0.0f, 1.0f);
+		glm::vec2 uv2(0.0f, 0.0f);
+		glm::vec2 uv3(1.0f, 0.0f);
+		glm::vec2 uv4(1.0f, 1.0f);
+		// normal vector
+		glm::vec3 nm(0.0f, 0.0f, 1.0f);
+
+		// calculate tangent/bitangent vectors of both triangles
+		glm::vec3 tangent1, bitangent1;
+		glm::vec3 tangent2, bitangent2;
+		// triangle 1
+		// ----------
+		glm::vec3 edge1 = pos2 - pos1;
+		glm::vec3 edge2 = pos3 - pos1;
+		glm::vec2 deltaUV1 = uv2 - uv1;
+		glm::vec2 deltaUV2 = uv3 - uv1;
+
+		float f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
+
+		tangent1.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
+		tangent1.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
+		tangent1.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
+
+		bitangent1.x = f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x);
+		bitangent1.y = f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y);
+		bitangent1.z = f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z);
+
+		// triangle 2
+		// ----------
+		edge1 = pos3 - pos1;
+		edge2 = pos4 - pos1;
+		deltaUV1 = uv3 - uv1;
+		deltaUV2 = uv4 - uv1;
+
+		f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
+
+		tangent2.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
+		tangent2.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
+		tangent2.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
+
+		bitangent2.x = f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x);
+		bitangent2.y = f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y);
+		bitangent2.z = f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z);
+
 		float quadVertices[] = {
-			// positions        // texture Coords
-			-1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
-			-1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
-			 1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
-			 1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+			// positions            // normal         // texcoords  // tangent                          // bitangent
+			pos1.x, pos1.y, pos1.z, nm.x, nm.y, nm.z, uv1.x, uv1.y, tangent1.x, tangent1.y, tangent1.z, bitangent1.x, bitangent1.y, bitangent1.z,
+			pos2.x, pos2.y, pos2.z, nm.x, nm.y, nm.z, uv2.x, uv2.y, tangent1.x, tangent1.y, tangent1.z, bitangent1.x, bitangent1.y, bitangent1.z,
+			pos3.x, pos3.y, pos3.z, nm.x, nm.y, nm.z, uv3.x, uv3.y, tangent1.x, tangent1.y, tangent1.z, bitangent1.x, bitangent1.y, bitangent1.z,
+
+			pos1.x, pos1.y, pos1.z, nm.x, nm.y, nm.z, uv1.x, uv1.y, tangent2.x, tangent2.y, tangent2.z, bitangent2.x, bitangent2.y, bitangent2.z,
+			pos3.x, pos3.y, pos3.z, nm.x, nm.y, nm.z, uv3.x, uv3.y, tangent2.x, tangent2.y, tangent2.z, bitangent2.x, bitangent2.y, bitangent2.z,
+			pos4.x, pos4.y, pos4.z, nm.x, nm.y, nm.z, uv4.x, uv4.y, tangent2.x, tangent2.y, tangent2.z, bitangent2.x, bitangent2.y, bitangent2.z
 		};
-		// setup plane VAO
+		// configure plane VAO
 		glGenVertexArrays(1, &quadVAO);
 		glGenBuffers(1, &quadVBO);
 		glBindVertexArray(quadVAO);
 		glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), /*&*/quadVertices, GL_STATIC_DRAW);
 		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)0);
 		glEnableVertexAttribArray(1);
-		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(3 * sizeof(float)));
+		glEnableVertexAttribArray(2);
+		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(6 * sizeof(float)));
+		glEnableVertexAttribArray(3);
+		glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(8 * sizeof(float)));
+		glEnableVertexAttribArray(4);
+		glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(11 * sizeof(float)));
 	}
 	glBindVertexArray(quadVAO);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	glDrawArrays(GL_TRIANGLES, 0, 6);
 	glBindVertexArray(0);
 }
