@@ -90,14 +90,16 @@ int main()
 
 	glEnable(GL_DEPTH_TEST);
 
-	Shader shader("res/shaders/5.advanced_lighting/4.normal_mapping/normalMappingVs.glsl", "res/shaders/5.advanced_lighting/4.normal_mapping/normalMappingFs.glsl");
+	Shader shader("res/shaders/5.advanced_lighting/5.1.parallax_mapping/parallaxMappingVs.glsl", "res/shaders/5.advanced_lighting/5.1.parallax_mapping/parallaxMappingFs.glsl");
 
-	unsigned int diffuseMap = loadTexture("res/textures/brickwall.jpg");
-	unsigned int normalMap = loadTexture("res/textures/brickwall_normal.jpg");
+	unsigned int diffuseMap = loadTexture("res/textures/bricks2.jpg");
+	unsigned int normalMap = loadTexture("res/textures/bricks2_normal.jpg");
+	unsigned int heightMap = loadTexture("res/textures/bricks2_disp.jpg");
 
 	shader.Bind();
 	shader.SetUniformInt("uDiffuseMap", 0);
 	shader.SetUniformInt("uNormalMap", 1);
+	shader.SetUniformInt("uDepthMap", 2);
 	
 	// lighting info
 	// -------------
@@ -114,6 +116,8 @@ int main()
 
 		processInput(window);
 
+		static float heightScale = 0.1f;
+
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -124,14 +128,17 @@ int main()
 		shader.SetUniformMat4("uView", view);
 		// render normal-mapped quad
 		glm::mat4 model = glm::mat4(1.0f);
-		model = glm::rotate(model, glm::radians((float)glfwGetTime() * -10.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0))); // rotate the quad to show normal mapping from multiple directions
+		//model = glm::rotate(model, glm::radians((float)glfwGetTime() * -10.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0))); // rotate the quad to show normal mapping from multiple directions
 		shader.SetUniformMat4("uModel", model);
 		shader.SetUniformFloat3("uViewPos", camera.Position);
 		shader.SetUniformFloat3("uLightPos", lightPos);
+		shader.SetUniformFloat("uHeightScale", heightScale);
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, diffuseMap);
 		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, normalMap);
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, heightMap);
 		renderQuad();
 
 		// render light source (simply re-renders a smaller plane at the light's position for debugging/visualization)
@@ -148,7 +155,8 @@ int main()
 		ImGui::NewFrame();
 
 		{
-			ImGui::Begin("Normal Mapping");
+			ImGui::Begin("Parallax Mapping");
+			ImGui::DragFloat("Height Scale", &heightScale, 0.02f, 0.0f, 1.0f);
 
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 			ImGui::End();
