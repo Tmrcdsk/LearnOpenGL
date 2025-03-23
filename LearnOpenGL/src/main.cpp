@@ -156,7 +156,7 @@ int main()
 	lightPositions.push_back(glm::vec3(0.0f, 0.5f, 1.5f));
 	lightPositions.push_back(glm::vec3(-4.0f, 0.5f, -3.0f));
 	lightPositions.push_back(glm::vec3(3.0f, 0.5f, 1.0f));
-	lightPositions.push_back(glm::vec3(-.8f, 2.4f, -1.0f));
+	lightPositions.push_back(glm::vec3(-0.8f, 2.4f, -1.0f));
 	// colors
 	std::vector<glm::vec3> lightColors;
 	lightColors.push_back(glm::vec3(5.0f, 5.0f, 5.0f));
@@ -274,10 +274,10 @@ int main()
 		unsigned int amount = 10;
 		shaderBlur.Bind();
 		for (unsigned int i = 0; i < amount; ++i) {
-			glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[horizontal]);
-			shaderBlur.SetUniformInt("uHorizontal", horizontal);
-			glBindTexture(GL_TEXTURE_2D, first_iteration ? colorBuffer[1] : pingpongColorbuffers[!horizontal]); // bind texture of other framebuffer (or scene if first iteration)
-			renderQuad();
+			glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[horizontal]); // 绑定交替的帧缓冲
+			shaderBlur.SetUniformInt("uHorizontal", horizontal); // 告诉着色器当前是水平还是垂直模糊
+			glBindTexture(GL_TEXTURE_2D, first_iteration ? colorBuffer[1] : pingpongColorbuffers[!horizontal]); // 绑定输入纹理：第一次使用亮部颜色缓冲，否则使用上一次模糊后的纹理
+			renderQuad(); // 绘制一个屏幕四边形，应用模糊着色器
 			horizontal = !horizontal;
 			if (first_iteration)
 				first_iteration = false;
