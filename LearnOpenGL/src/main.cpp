@@ -139,10 +139,6 @@ int main()
 	hdrShader.Bind();
 	hdrShader.SetUniformInt("uHDRBuffer", 0);
 	
-	// lighting info
-	// -------------
-	glm::vec3 lightPos(0.5f, 1.0f, 0.3f);
-
 	// draw in wireframe
 	 //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
