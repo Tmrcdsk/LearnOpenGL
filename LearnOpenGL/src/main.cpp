@@ -224,10 +224,15 @@ int main()
 			shaderLightingPass.SetUniformFloat3("uLights[" + std::to_string(i) + "].Position", lightPositions[i]);
 			shaderLightingPass.SetUniformFloat3("uLights[" + std::to_string(i) + "].Color", lightColors[i]);
 			// update attenuation parameters and calculate radius
+			const float constant = 1.0f; // note that we don't send this to the shader, we assume it is always 1.0 (in our case)
 			const float linear = 0.7f;
 			const float quadratic = 1.8f;
 			shaderLightingPass.SetUniformFloat("uLights[" + std::to_string(i) + "].Linear", linear);
 			shaderLightingPass.SetUniformFloat("uLights[" + std::to_string(i) + "].Quadratic", quadratic);
+			// then calculate radius of light volume/sphere
+			const float maxBrightness = std::fmaxf(std::fmaxf(lightColors[i].r, lightColors[i].g), lightColors[i].b);
+			float radius = (-linear + std::sqrtf(linear * linear - 4 * quadratic * (constant - (256.0 / 5.0) * maxBrightness))) / (2.0f * quadratic);
+			shaderLightingPass.SetUniformFloat("uLights[" + std::to_string(i) + "].Radius", radius);
 		}
 		shaderLightingPass.SetUniformFloat3("uViewPos", camera.Position);
 		// finally render quad
