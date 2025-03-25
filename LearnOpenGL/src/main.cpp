@@ -97,8 +97,17 @@ int main()
 	Shader shader("res/shaders/6.pbr/1.1.lighting/pbrVs.glsl", "res/shaders/6.pbr/1.1.lighting/pbrFs.glsl");
 
 	shader.Bind();
-	shader.SetUniformFloat3("uAlbedo", 0.5f, 0.0f, 0.0f);
-	shader.SetUniformFloat("uAO", 1.0f);
+	shader.SetUniformInt("uAlbedoMap", 0);
+	shader.SetUniformInt("uNormalMap", 1);
+	shader.SetUniformInt("uMetallicMap", 2);
+	shader.SetUniformInt("uRoughnessMap", 3);
+	shader.SetUniformInt("uAOMap", 4);
+
+	unsigned int albedo = loadTexture("res/textures/pbr/rusted_iron/albedo.png");
+	unsigned int normal = loadTexture("res/textures/pbr/rusted_iron/normal.png");
+	unsigned int metallic = loadTexture("res/textures/pbr/rusted_iron/metallic.png");
+	unsigned int roughness = loadTexture("res/textures/pbr/rusted_iron/roughness.png");
+	unsigned int ao = loadTexture("res/textures/pbr/rusted_iron/ao.png");
 
 	// lights
 	// ------
@@ -143,15 +152,21 @@ int main()
 		shader.SetUniformMat4("uView", view);
 		shader.SetUniformFloat3("uCamPos", camera.Position);
 
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, albedo);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, normal);
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, metallic);
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, roughness);
+		glActiveTexture(GL_TEXTURE4);
+		glBindTexture(GL_TEXTURE_2D, ao);
+
 		// render rows*column number of spheres with varying metallic/roughness values scaled by rows and columns respectively
 		glm::mat4 model = glm::mat4(1.0f);
 		for (int row = 0; row < nrRows; ++row) {
-			shader.SetUniformFloat("uMetallic", (float)row / nrRows);
 			for (int col = 0; col < nrColumns; ++col) {
-				// we clamp the roughness to 0.05 - 1.0 as perfectly smooth surfaces (roughness of 0.0) tend to look a bit off
-				// on direct lighting.
-				shader.SetUniformFloat("uRoughness", glm::clamp((float)col / nrColumns, 0.05f, 1.0f));
-
 				model = glm::mat4(1.0f);
 				model = glm::translate(model, glm::vec3(
 					(col - (nrColumns / 2)) * spacing,
@@ -188,7 +203,7 @@ int main()
 		ImGui::NewFrame();
 
 		{
-			ImGui::Begin("PBR");
+			ImGui::Begin("Textured PBR");
 
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 			ImGui::End();
