@@ -26,6 +26,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 unsigned int loadTexture(const char* path, bool gammaCorrection = false);
 unsigned int loadCubemap(const std::vector<std::string>& faces);
+unsigned int loadHDR(const std::string& path);
 void renderCube();
 void renderQuad();
 void renderSphere();
@@ -93,21 +94,18 @@ int main()
 	stbi_set_flip_vertically_on_load(true);
 
 	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL); // set depth function to less than AND equal for skybox depth trick.
 
-	Shader shader("res/shaders/6.pbr/1.1.lighting/pbrVs.glsl", "res/shaders/6.pbr/1.1.lighting/pbrFs.glsl");
+	Shader pbrShader("res/shaders/6.pbr/2.1.1.ibl_irradiance_conversion/pbrVs.glsl", "res/shaders/6.pbr/2.1.1.ibl_irradiance_conversion/pbrFs.glsl");
+	Shader equirectangularToCubemapShader("res/shaders/6.pbr/2.1.1.ibl_irradiance_conversion/cubemapVs.glsl", "res/shaders/6.pbr/2.1.1.ibl_irradiance_conversion/equirectangularToCubemapFs.glsl");
+	Shader backgroundShader("res/shaders/6.pbr/2.1.1.ibl_irradiance_conversion/backgroundVs.glsl", "res/shaders/6.pbr/2.1.1.ibl_irradiance_conversion/backgroundFs.glsl");
 
-	shader.Bind();
-	shader.SetUniformInt("uAlbedoMap", 0);
-	shader.SetUniformInt("uNormalMap", 1);
-	shader.SetUniformInt("uMetallicMap", 2);
-	shader.SetUniformInt("uRoughnessMap", 3);
-	shader.SetUniformInt("uAOMap", 4);
+	pbrShader.Bind();
+	pbrShader.SetUniformFloat3("uAlbedo", 0.5f, 0.0f, 0.0f);
+	pbrShader.SetUniformFloat("uAO", 1.0f);
 
-	unsigned int albedo = loadTexture("res/textures/pbr/rusted_iron/albedo.png");
-	unsigned int normal = loadTexture("res/textures/pbr/rusted_iron/normal.png");
-	unsigned int metallic = loadTexture("res/textures/pbr/rusted_iron/metallic.png");
-	unsigned int roughness = loadTexture("res/textures/pbr/rusted_iron/roughness.png");
-	unsigned int ao = loadTexture("res/textures/pbr/rusted_iron/ao.png");
+	backgroundShader.Bind();
+	backgroundShader.SetUniformInt("uEnvironmentMap", 0);
 
 	// lights
 	// ------
@@ -127,11 +125,80 @@ int main()
 	int nrColumns = 7;
 	float spacing = 2.5;
 
+	// pbr: setup framebuffer
+	// ----------------------
+	unsigned int captureFBO;
+	unsigned int captureRBO;
+	glGenFramebuffers(1, &captureFBO);
+	glGenRenderbuffers(1, &captureRBO);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+	glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 512, 512);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, captureRBO);
+
+	// pbr: load the HDR environment map
+	// ---------------------------------
+	unsigned int hdrTexture = loadHDR("res/textures/hdr/newport_loft.hdr");
+
+	// pbr: setup cubemap to render to and attach to framebuffer
+	// ---------------------------------------------------------
+	unsigned int envCubemap;
+	glGenTextures(1, &envCubemap);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+	for (unsigned int i = 0; i < 6; ++i) {
+		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, 512, 512, 0, GL_RGB, GL_FLOAT, nullptr);
+	}
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+	// pbr: set up projection and view matrices for capturing data onto the 6 cubemap face directions
+	// ----------------------------------------------------------------------------------------------
+	glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
+	glm::mat4 captureViews[] =
+	{
+		glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+		glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+		glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
+		glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
+		glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+		glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
+	};
+
+	// pbr: convert HDR equirectangular environment map to cubemap equivalent
+	// ----------------------------------------------------------------------
+	equirectangularToCubemapShader.Bind();
+	equirectangularToCubemapShader.SetUniformInt("uEquirectangularMap", 0);
+	equirectangularToCubemapShader.SetUniformMat4("uProjection", captureProjection);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, hdrTexture);
+
+	glViewport(0, 0, 512, 512); // don't forget to configure the viewport to the capture dimensions.
+	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+	for (unsigned int i = 0; i < 6; ++i) {
+		equirectangularToCubemapShader.SetUniformMat4("uView", captureViews[i]);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, envCubemap, 0);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		renderCube();
+	}
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 	// initialize static shader uniforms before rendering
 	// --------------------------------------------------
 	glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)Width / (float)Height, 0.1f, 100.0f);
-	shader.Bind();
-	shader.SetUniformMat4("uProjection", projection);
+	pbrShader.Bind();
+	pbrShader.SetUniformMat4("uProjection", projection);
+	backgroundShader.Bind();
+	backgroundShader.SetUniformMat4("uProjection", projection);
+
+	// then before rendering, configure the viewport to the original framebuffer's screen dimensions
+	int srcWidth, srcHeight;
+	glfwGetFramebufferSize(window, &srcWidth, &srcHeight);
+	glViewport(0, 0, srcWidth, srcHeight);
 	
 	// draw in wireframe
 	 //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -144,37 +211,31 @@ int main()
 
 		processInput(window);
 
-		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		shader.Bind();
+		pbrShader.Bind();
 		glm::mat4 view = camera.GetViewMatrix();
-		shader.SetUniformMat4("uView", view);
-		shader.SetUniformFloat3("uCamPos", camera.Position);
-
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, albedo);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, normal);
-		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_2D, metallic);
-		glActiveTexture(GL_TEXTURE3);
-		glBindTexture(GL_TEXTURE_2D, roughness);
-		glActiveTexture(GL_TEXTURE4);
-		glBindTexture(GL_TEXTURE_2D, ao);
+		pbrShader.SetUniformMat4("uView", view);
+		pbrShader.SetUniformFloat3("uCamPos", camera.Position);
 
 		// render rows*column number of spheres with varying metallic/roughness values scaled by rows and columns respectively
 		glm::mat4 model = glm::mat4(1.0f);
 		for (int row = 0; row < nrRows; ++row) {
+			pbrShader.SetUniformFloat("uMetallic", (float)row / (float)nrRows);
 			for (int col = 0; col < nrColumns; ++col) {
+				// we clamp the roughness to 0.025 - 1.0 as perfectly smooth surfaces (roughness of 0.0) tend to look a bit off
+				// on direct lighting.
+				pbrShader.SetUniformFloat("uRoughness", glm::clamp((float)col / (float)nrColumns, 0.05f, 1.0f));
+
 				model = glm::mat4(1.0f);
 				model = glm::translate(model, glm::vec3(
 					(col - (nrColumns / 2)) * spacing,
 					(row - (nrRows / 2)) * spacing,
-					0.0f
+					-2.0f
 				));
-				shader.SetUniformMat4("uModel", model);
-				shader.SetUniformMat3("uNormalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
+				pbrShader.SetUniformMat4("uModel", model);
+				pbrShader.SetUniformMat3("uNormalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
 				renderSphere();
 			}
 		}
@@ -185,16 +246,23 @@ int main()
 		for (unsigned int i = 0; i < sizeof(lightPositions) / sizeof(lightPositions[0]); ++i) {
 			glm::vec3 newPos = lightPositions[i] + glm::vec3(sin(glfwGetTime() * 5.0) * 5.0, 0.0, 0.0);
 			newPos = lightPositions[i];
-			shader.SetUniformFloat3("uLightPositions[" + std::to_string(i) + "]", newPos);
-			shader.SetUniformFloat3("uLightColors[" + std::to_string(i) + "]", lightColors[i]);
+			pbrShader.SetUniformFloat3("uLightPositions[" + std::to_string(i) + "]", newPos);
+			pbrShader.SetUniformFloat3("uLightColors[" + std::to_string(i) + "]", lightColors[i]);
 
 			model = glm::mat4(1.0f);
 			model = glm::translate(model, newPos);
 			model = glm::scale(model, glm::vec3(0.5f));
-			shader.SetUniformMat4("uModel", model);
-			shader.SetUniformMat4("uNormalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
+			pbrShader.SetUniformMat4("uModel", model);
+			pbrShader.SetUniformMat4("uNormalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
 			renderSphere();
 		}
+
+		// render skybox (render as last to prevent overdraw)
+		backgroundShader.Bind();
+		backgroundShader.SetUniformMat4("uView", view);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+		renderCube();
 
 
 		// Start the Dear ImGui frame
@@ -369,6 +437,32 @@ unsigned int loadCubemap(const std::vector<std::string>& faces)
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
 	return textureID;
+}
+
+unsigned int loadHDR(const std::string& path)
+{
+	int width, height, channels;
+	float* data = stbi_loadf(path.c_str(), &width, &height, &channels, 0);
+	unsigned int hdrTexture;
+	if (data)
+	{
+		glGenTextures(1, &hdrTexture);
+		glBindTexture(GL_TEXTURE_2D, hdrTexture);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, data); // note how we specify the texture's data value to be float
+		stbi_image_free(data);
+	}
+	else
+	{
+		std::cout << "Failed to load HDR image." << std::endl;
+		stbi_image_free(data);
+	}
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	return hdrTexture;
 }
 
 // renderCube() renders a 1x1 3D cube in NDC.
