@@ -5,10 +5,11 @@ in vec3 vWorldPos;
 in vec3 vNormal;
 
 // material parameters
-uniform vec3 uAlbedo;
-uniform float uMetallic;
-uniform float uRoughness;
-uniform float uAO;
+uniform sampler2D uAlbedoMap;
+uniform sampler2D uNormalMap;
+uniform sampler2D uMetallicMap;
+uniform sampler2D uRoughnessMap;
+uniform sampler2D uAOMap;
 
 // IBL
 uniform samplerCube uIrradianceMap;
@@ -22,6 +23,28 @@ uniform vec3 uLightColors[4];
 uniform vec3 uCamPos;
 
 const float PI = 3.14159265359;
+
+// ----------------------------------------------------------------------------
+// Easy trick to get tangent-normals to world-space to keep PBR code simplified.
+// Don't worry if you don't get what's going on; you generally want to do normal 
+// mapping the usual way for performance anyways; I do plan make a note of this 
+// technique somewhere later in the normal mapping tutorial.
+vec3 getNormalFromMap()
+{
+	vec3 tangentNormal = texture(uNormalMap, vTexCoords).xyz * 2.0 - 1.0;
+	
+	vec3 Q1  = dFdx(vWorldPos);
+	vec3 Q2  = dFdy(vWorldPos);
+	vec2 st1 = dFdx(vTexCoords);
+	vec2 st2 = dFdy(vTexCoords);
+	
+	vec3 N   = normalize(vNormal);
+	vec3 T  = normalize(Q1 * st2.t - Q2 * st1.t);
+	vec3 B  = -normalize(cross(N, T));
+	mat3 TBN = mat3(T, B, N);
+	
+	return normalize(TBN * tangentNormal);
+}
 
 float DistributionGGX(vec3 N, vec3 H, float roughness)
 {
@@ -70,14 +93,21 @@ vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
 
 void main()
 {
-	vec3 N = vNormal;
+	// material properties
+	vec3 albedo = pow(texture(uAlbedoMap, vTexCoords).rgb, vec3(2.2));
+	float metallic = texture(uMetallicMap, vTexCoords).r;
+	float roughness = texture(uRoughnessMap, vTexCoords).r;
+	float ao = texture(uAOMap, vTexCoords).r;
+
+	// input lighting data
+	vec3 N = getNormalFromMap();
 	vec3 V = normalize(uCamPos - vWorldPos);
 	vec3 R = reflect(-V, N);
 
 	// calculate reflectance at normal incidence; if dia-electric (like plastic) use F0 
 	// of 0.04 and if it's a metal, use the albedo color as F0 (metallic workflow)
 	vec3 F0 = vec3(0.04);
-	F0 = mix(F0, uAlbedo, uMetallic);
+	F0 = mix(F0, albedo, metallic);
 
 	// reflectance equation
 	vec3 Lo = vec3(0.0);
@@ -91,8 +121,8 @@ void main()
 		vec3 radiance = uLightColors[i] * attenuation;
 
 		// Cook-Torrance BRDF
-		float NDF = DistributionGGX(N, H, uRoughness);
-		float G = GeometrySmith(N, V, L, uRoughness);
+		float NDF = DistributionGGX(N, H, roughness);
+		float G = GeometrySmith(N, V, L, roughness);
 		vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
 
 		vec3 numerator = NDF * G * F;
@@ -108,32 +138,32 @@ void main()
 		// multiply kD by the inverse metalness such that only non-metals 
 		// have diffuse lighting, or a linear blend if partly metal (pure metals
 		// have no diffuse light).
-		kD *= (1.0 - uMetallic);
+		kD *= (1.0 - metallic);
 
 		// scale light by NdotL
 		float NdotL = max(dot(N, L), 0.0);
 
 		// add to outgoing radiance Lo
-		Lo += (kD * uAlbedo / PI + specular) * radiance * NdotL; // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
+		Lo += (kD * albedo / PI + specular) * radiance * NdotL; // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
 	}
 
 	// ambient lighting (we now use IBL as the ambient term)
-	vec3 F = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, uRoughness);
+	vec3 F = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness);
 
 	vec3 kS = F;
 	vec3 kD = 1.0 - kS;
-	kD *= 1.0 - uMetallic;
+	kD *= 1.0 - metallic;
 
 	vec3 irradiance = texture(uIrradianceMap, N).rgb;
-	vec3 diffuse = irradiance * uAlbedo;
+	vec3 diffuse = irradiance * albedo;
 
 	// sample both the pre-filter map and the BRDF lut and combine them together as per the Split-Sum approximation to get the IBL specular part.
 	const float MAX_REFLECTION_LOD = 4.0;
-	vec3 prefilteredColor = textureLod(uPrefilterMap, R, uRoughness * MAX_REFLECTION_LOD).rgb;
-	vec2 brdf = texture(uBrdfLUT, vec2(max(dot(N, V), 0.0), uRoughness)).rg;
+	vec3 prefilteredColor = textureLod(uPrefilterMap, R, roughness * MAX_REFLECTION_LOD).rgb;
+	vec2 brdf = texture(uBrdfLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
 	vec3 specular = prefilteredColor * (F * brdf.x + brdf.y);
 
-	vec3 ambient = (kD * diffuse + specular) * uAO;
+	vec3 ambient = (kD * diffuse + specular) * ao;
 	// vec3 ambient = vec3(0.002);
 
 	vec3 color = ambient + Lo;

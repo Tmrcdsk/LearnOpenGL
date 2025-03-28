@@ -4,9 +4,11 @@ in vec3 vWorldPos;
 
 uniform samplerCube uEnvironmentMap;
 
+uniform float uMipLevel;
+
 void main()
 {
-	vec3 envColor = texture(uEnvironmentMap, vWorldPos).rgb;
+	vec3 envColor = textureLod(uEnvironmentMap, vWorldPos, uMipLevel).rgb;
 
 	// HDR tonemap and gamma correct
 	envColor = envColor / (envColor + vec3(1.0));

@@ -109,11 +109,51 @@ int main()
 	pbrShader.SetUniformInt("uIrradianceMap", 0);
 	pbrShader.SetUniformInt("uPrefilterMap", 1);
 	pbrShader.SetUniformInt("uBrdfLUT", 2);
-	pbrShader.SetUniformFloat3("uAlbedo", 0.5f, 0.0f, 0.0f);
-	pbrShader.SetUniformFloat("uAO", 1.0f);
+	pbrShader.SetUniformInt("uAlbedoMap", 3);
+	pbrShader.SetUniformInt("uNormalMap", 4);
+	pbrShader.SetUniformInt("uMetallicMap", 5);
+	pbrShader.SetUniformInt("uRoughnessMap", 6);
+	pbrShader.SetUniformInt("uAOMap", 7);
 
 	backgroundShader.Bind();
 	backgroundShader.SetUniformInt("uEnvironmentMap", 0);
+
+	// load PBR material textures
+	// --------------------------
+	// rusted iron
+	unsigned int ironAlbedoMap = loadTexture("res/textures/pbr/rusted_iron/albedo.png");
+	unsigned int ironNormalMap = loadTexture("res/textures/pbr/rusted_iron/normal.png");
+	unsigned int ironMetallicMap = loadTexture("res/textures/pbr/rusted_iron/metallic.png");
+	unsigned int ironRoughnessMap = loadTexture("res/textures/pbr/rusted_iron/roughness.png");
+	unsigned int ironAOMap = loadTexture("res/textures/pbr/rusted_iron/ao.png");
+
+	// gold
+	unsigned int goldAlbedoMap = loadTexture("res/textures/pbr/gold/albedo.png");
+	unsigned int goldNormalMap = loadTexture("res/textures/pbr/gold/normal.png");
+	unsigned int goldMetallicMap = loadTexture("res/textures/pbr/gold/metallic.png");
+	unsigned int goldRoughnessMap = loadTexture("res/textures/pbr/gold/roughness.png");
+	unsigned int goldAOMap = loadTexture("res/textures/pbr/gold/ao.png");
+
+	// grass
+	unsigned int grassAlbedoMap = loadTexture("res/textures/pbr/grass/albedo.png");
+	unsigned int grassNormalMap = loadTexture("res/textures/pbr/grass/normal.png");
+	unsigned int grassMetallicMap = loadTexture("res/textures/pbr/grass/metallic.png");
+	unsigned int grassRoughnessMap = loadTexture("res/textures/pbr/grass/roughness.png");
+	unsigned int grassAOMap = loadTexture("res/textures/pbr/grass/ao.png");
+
+	// plastic
+	unsigned int plasticAlbedoMap = loadTexture("res/textures/pbr/plastic/albedo.png");
+	unsigned int plasticNormalMap = loadTexture("res/textures/pbr/plastic/normal.png");
+	unsigned int plasticMetallicMap = loadTexture("res/textures/pbr/plastic/metallic.png");
+	unsigned int plasticRoughnessMap = loadTexture("res/textures/pbr/plastic/roughness.png");
+	unsigned int plasticAOMap = loadTexture("res/textures/pbr/plastic/ao.png");
+
+	// wall
+	unsigned int wallAlbedoMap = loadTexture("res/textures/pbr/wall/albedo.png");
+	unsigned int wallNormalMap = loadTexture("res/textures/pbr/wall/normal.png");
+	unsigned int wallMetallicMap = loadTexture("res/textures/pbr/wall/metallic.png");
+	unsigned int wallRoughnessMap = loadTexture("res/textures/pbr/wall/roughness.png");
+	unsigned int wallAOMap = loadTexture("res/textures/pbr/wall/ao.png");
 
 	// lights
 	// ------
@@ -129,9 +169,6 @@ int main()
 		glm::vec3(300.0f, 300.0f, 300.0f),
 		glm::vec3(300.0f, 300.0f, 300.0f)
 	};
-	int nrRows = 7;
-	int nrColumns = 7;
-	float spacing = 2.5;
 
 	// pbr: setup framebuffer
 	// ----------------------
@@ -157,7 +194,7 @@ int main()
 	for (unsigned int i = 0; i < 6; ++i) {
 		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, 512, 512, 0, GL_RGB, GL_FLOAT, nullptr);
 	}
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -333,10 +370,14 @@ int main()
 
 		processInput(window);
 
+		static float mipLevel = 1.2;
+		static bool prefilter = false;
+
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		pbrShader.Bind();
+		glm::mat4 model = glm::mat4(1.0f);
 		glm::mat4 view = camera.GetViewMatrix();
 		pbrShader.SetUniformMat4("uView", view);
 		pbrShader.SetUniformFloat3("uCamPos", camera.Position);
@@ -349,26 +390,95 @@ int main()
 		glActiveTexture(GL_TEXTURE2);
 		glBindTexture(GL_TEXTURE_2D, brdfLUTTexture);
 
-		// render rows*column number of spheres with varying metallic/roughness values scaled by rows and columns respectively
-		glm::mat4 model = glm::mat4(1.0f);
-		for (int row = 0; row < nrRows; ++row) {
-			pbrShader.SetUniformFloat("uMetallic", (float)row / (float)nrRows);
-			for (int col = 0; col < nrColumns; ++col) {
-				// we clamp the roughness to 0.025 - 1.0 as perfectly smooth surfaces (roughness of 0.0) tend to look a bit off
-				// on direct lighting.
-				pbrShader.SetUniformFloat("uRoughness", glm::clamp((float)col / (float)nrColumns, 0.05f, 1.0f));
+		// rusted iron
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, ironAlbedoMap);
+		glActiveTexture(GL_TEXTURE4);
+		glBindTexture(GL_TEXTURE_2D, ironNormalMap);
+		glActiveTexture(GL_TEXTURE5);
+		glBindTexture(GL_TEXTURE_2D, ironMetallicMap);
+		glActiveTexture(GL_TEXTURE6);
+		glBindTexture(GL_TEXTURE_2D, ironRoughnessMap);
+		glActiveTexture(GL_TEXTURE7);
+		glBindTexture(GL_TEXTURE_2D, ironAOMap);
 
-				model = glm::mat4(1.0f);
-				model = glm::translate(model, glm::vec3(
-					(col - (nrColumns / 2)) * spacing,
-					(row - (nrRows / 2)) * spacing,
-					-2.0f
-				));
-				pbrShader.SetUniformMat4("uModel", model);
-				pbrShader.SetUniformMat3("uNormalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
-				renderSphere();
-			}
-		}
+		model = glm::mat4(1.0f);
+		model = glm::translate(model, glm::vec3(-5.0, 0.0, 2.0));
+		pbrShader.SetUniformMat4("uModel", model);
+		pbrShader.SetUniformMat3("uNormalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
+		renderSphere();
+
+		// gold
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, goldAlbedoMap);
+		glActiveTexture(GL_TEXTURE4);
+		glBindTexture(GL_TEXTURE_2D, goldNormalMap);
+		glActiveTexture(GL_TEXTURE5);
+		glBindTexture(GL_TEXTURE_2D, goldMetallicMap);
+		glActiveTexture(GL_TEXTURE6);
+		glBindTexture(GL_TEXTURE_2D, goldRoughnessMap);
+		glActiveTexture(GL_TEXTURE7);
+		glBindTexture(GL_TEXTURE_2D, goldAOMap);
+
+		model = glm::mat4(1.0f);
+		model = glm::translate(model, glm::vec3(-3.0, 0.0, 2.0));
+		pbrShader.SetUniformMat4("uModel", model);
+		pbrShader.SetUniformMat3("uNormalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
+		renderSphere();
+
+		// grass
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, grassAlbedoMap);
+		glActiveTexture(GL_TEXTURE4);
+		glBindTexture(GL_TEXTURE_2D, grassNormalMap);
+		glActiveTexture(GL_TEXTURE5);
+		glBindTexture(GL_TEXTURE_2D, grassMetallicMap);
+		glActiveTexture(GL_TEXTURE6);
+		glBindTexture(GL_TEXTURE_2D, grassRoughnessMap);
+		glActiveTexture(GL_TEXTURE7);
+		glBindTexture(GL_TEXTURE_2D, grassAOMap);
+
+		model = glm::mat4(1.0f);
+		model = glm::translate(model, glm::vec3(-1.0, 0.0, 2.0));
+		pbrShader.SetUniformMat4("uModel", model);
+		pbrShader.SetUniformMat3("uNormalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
+		renderSphere();
+
+		// plastic
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, plasticAlbedoMap);
+		glActiveTexture(GL_TEXTURE4);
+		glBindTexture(GL_TEXTURE_2D, plasticNormalMap);
+		glActiveTexture(GL_TEXTURE5);
+		glBindTexture(GL_TEXTURE_2D, plasticMetallicMap);
+		glActiveTexture(GL_TEXTURE6);
+		glBindTexture(GL_TEXTURE_2D, plasticRoughnessMap);
+		glActiveTexture(GL_TEXTURE7);
+		glBindTexture(GL_TEXTURE_2D, plasticAOMap);
+
+		model = glm::mat4(1.0f);
+		model = glm::translate(model, glm::vec3(1.0, 0.0, 2.0));
+		pbrShader.SetUniformMat4("uModel", model);
+		pbrShader.SetUniformMat3("uNormalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
+		renderSphere();
+
+		// wall
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, wallAlbedoMap);
+		glActiveTexture(GL_TEXTURE4);
+		glBindTexture(GL_TEXTURE_2D, wallNormalMap);
+		glActiveTexture(GL_TEXTURE5);
+		glBindTexture(GL_TEXTURE_2D, wallMetallicMap);
+		glActiveTexture(GL_TEXTURE6);
+		glBindTexture(GL_TEXTURE_2D, wallRoughnessMap);
+		glActiveTexture(GL_TEXTURE7);
+		glBindTexture(GL_TEXTURE_2D, wallAOMap);
+
+		model = glm::mat4(1.0f);
+		model = glm::translate(model, glm::vec3(3.0, 0.0, 2.0));
+		pbrShader.SetUniformMat4("uModel", model);
+		pbrShader.SetUniformMat3("uNormalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
+		renderSphere();
 
 		// render light source (simply re-render sphere at light positions)
 		// this looks a bit off as we use the same shader, but it'll make their positions obvious and 
@@ -390,14 +500,15 @@ int main()
 		// render skybox (render as last to prevent overdraw)
 		backgroundShader.Bind();
 		backgroundShader.SetUniformMat4("uView", view);
+		backgroundShader.SetUniformFloat("uMipLevel", mipLevel);
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, prefilter ? prefilterMap : envCubemap);
 		//glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap); // display irradiance map
 		//glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap); // display prefilter map
 		renderCube();
 
 		// render BRDF map to screen
-		//brdfShader.Use();
+		//brdfShader.Bind();
 		//renderQuad();
 
 
@@ -408,6 +519,9 @@ int main()
 
 		{
 			ImGui::Begin("IBL: Specular IBL");
+			ImGui::Checkbox("Prefilter", &prefilter);
+			if (prefilter)
+				ImGui::DragFloat("Mip Level", &mipLevel, 0.05f, 0.0f, 4.0f);
 
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 			ImGui::End();
