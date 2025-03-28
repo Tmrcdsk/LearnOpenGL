@@ -96,11 +96,13 @@ int main()
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL); // set depth function to less than AND equal for skybox depth trick.
 
-	Shader pbrShader("res/shaders/6.pbr/2.1.1.ibl_irradiance_conversion/pbrVs.glsl", "res/shaders/6.pbr/2.1.1.ibl_irradiance_conversion/pbrFs.glsl");
+	Shader pbrShader("res/shaders/6.pbr/2.1.1.ibl_irradiance_conversion/pbrVs.glsl", "res/shaders/6.pbr/2.1.2.ibl_irradiance/pbrFs.glsl");
 	Shader equirectangularToCubemapShader("res/shaders/6.pbr/2.1.1.ibl_irradiance_conversion/cubemapVs.glsl", "res/shaders/6.pbr/2.1.1.ibl_irradiance_conversion/equirectangularToCubemapFs.glsl");
+	Shader irradianceShader("res/shaders/6.pbr/2.1.1.ibl_irradiance_conversion/cubemapVs.glsl", "res/shaders/6.pbr/2.1.2.ibl_irradiance/irradianceConvolutionFs.glsl");
 	Shader backgroundShader("res/shaders/6.pbr/2.1.1.ibl_irradiance_conversion/backgroundVs.glsl", "res/shaders/6.pbr/2.1.1.ibl_irradiance_conversion/backgroundFs.glsl");
 
 	pbrShader.Bind();
+	pbrShader.SetUniformInt("uIrradianceMap", 0);
 	pbrShader.SetUniformFloat3("uAlbedo", 0.5f, 0.0f, 0.0f);
 	pbrShader.SetUniformFloat("uAO", 1.0f);
 
@@ -187,6 +189,43 @@ int main()
 	}
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+	// pbr: create an irradiance cubemap, and re-scale capture FBO to irradiance scale.
+	// --------------------------------------------------------------------------------
+	unsigned int irradianceMap;
+	glGenTextures(1, &irradianceMap);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
+	for (unsigned int i = 0; i < 6; ++i) {
+		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, 32, 32, 0, GL_RGB, GL_FLOAT, nullptr);
+	}
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+	glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 32, 32);
+
+	// pbr: solve diffuse integral by convolution to create an irradiance (cube)map.
+	// -----------------------------------------------------------------------------
+	irradianceShader.Bind();
+	irradianceShader.SetUniformInt("uEnvironmentMap", 0);
+	irradianceShader.SetUniformMat4("uProjection", captureProjection);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+
+	glViewport(0, 0, 32, 32); // don't forget to configure the viewport to the capture dimensions.
+	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+	for (unsigned int i = 0; i < 6; ++i) {
+		irradianceShader.SetUniformMat4("uView", captureViews[i]);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, irradianceMap, 0);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		renderCube();
+	}
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 	// initialize static shader uniforms before rendering
 	// --------------------------------------------------
 	glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)Width / (float)Height, 0.1f, 100.0f);
@@ -211,6 +250,8 @@ int main()
 
 		processInput(window);
 
+		static bool convolution = false;
+
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -218,6 +259,10 @@ int main()
 		glm::mat4 view = camera.GetViewMatrix();
 		pbrShader.SetUniformMat4("uView", view);
 		pbrShader.SetUniformFloat3("uCamPos", camera.Position);
+
+		// bind pre-computed IBL data
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
 
 		// render rows*column number of spheres with varying metallic/roughness values scaled by rows and columns respectively
 		glm::mat4 model = glm::mat4(1.0f);
@@ -261,7 +306,7 @@ int main()
 		backgroundShader.Bind();
 		backgroundShader.SetUniformMat4("uView", view);
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, convolution ? irradianceMap : envCubemap);
 		renderCube();
 
 
@@ -271,7 +316,8 @@ int main()
 		ImGui::NewFrame();
 
 		{
-			ImGui::Begin("Textured PBR");
+			ImGui::Begin("IBL: Diffuse irradiance");
+			ImGui::Checkbox("Irradiance Map", &convolution);
 
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 			ImGui::End();

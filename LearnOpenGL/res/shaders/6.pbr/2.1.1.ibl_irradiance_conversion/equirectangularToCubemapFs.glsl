@@ -4,7 +4,7 @@ in vec3 vWorldPos;
 
 uniform sampler2D uEquirectangularMap;
 
-const vec2 invAtan = vec2(0.1591, 0.3183);
+const vec2 invAtan = vec2(0.1591, 0.3183); // vec2(1.0 / (2.0 * PI), 1.0 / PI);
 vec2 SampleSphericalMap(vec3 v)
 {
 	vec2 uv = vec2(atan(v.z, v.x), asin(v.y));
