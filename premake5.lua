@@ -57,3 +57,8 @@ project "LearnOpenGL"
         "opengl32.lib",
         "assimp-vc143-mt.lib"
     }
+
+	postbuildcommands
+	{
+		"{COPY} %{wks.location}/Dependencies/Assimp/lib/Release/assimp-vc143-mt.dll %{wks.location}/bin/" .. outputdir .. "/%{prj.name}/"
+	}
