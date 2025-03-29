@@ -118,6 +118,8 @@ int main()
 	backgroundShader.Bind();
 	backgroundShader.SetUniformInt("uEnvironmentMap", 0);
 
+
+
 	// load PBR material textures
 	// --------------------------
 	// rusted iron
@@ -179,12 +181,12 @@ int main()
 
 	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
 	glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 512, 512);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 4096, 4096);
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, captureRBO);
 
 	// pbr: load the HDR environment map
 	// ---------------------------------
-	unsigned int hdrTexture = loadHDR("res/textures/hdr/newport_loft.hdr");
+	unsigned int hdrTexture = loadHDR("res/textures/hdr/kloppenheim_06_puresky_4k.hdr");
 
 	// pbr: setup cubemap to render to and attach to framebuffer
 	// ---------------------------------------------------------
@@ -192,7 +194,7 @@ int main()
 	glGenTextures(1, &envCubemap);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
 	for (unsigned int i = 0; i < 6; ++i) {
-		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, 512, 512, 0, GL_RGB, GL_FLOAT, nullptr);
+		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, 4096, 4096, 0, GL_RGB, GL_FLOAT, nullptr);
 	}
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -221,7 +223,7 @@ int main()
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, hdrTexture);
 
-	glViewport(0, 0, 512, 512); // don't forget to configure the viewport to the capture dimensions.
+	glViewport(0, 0, 4096, 4096); // don't forget to configure the viewport to the capture dimensions.
 	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
 	for (unsigned int i = 0; i < 6; ++i) {
 		equirectangularToCubemapShader.SetUniformMat4("uView", captureViews[i]);
@@ -326,7 +328,7 @@ int main()
 
 	// pre-allocate enough memory for the LUT texture.
 	glBindTexture(GL_TEXTURE_2D, brdfLUTTexture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16F, 512, 512, 0, GL_RG, GL_FLOAT, 0);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16F, 4096, 4096, 0, GL_RG, GL_FLOAT, 0);
 	// be sure to set wrapping mode to GL_CLAMP_TO_EDGE
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -336,10 +338,10 @@ int main()
 	// then re-configure capture framebuffer object and render screen-space quad with BRDF shader.
 	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
 	glBindRenderbuffer(GL_RENDERBUFFER, captureFBO);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 512, 512);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 4096, 4096);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, brdfLUTTexture, 0);
 
-	glViewport(0, 0, 512, 512);
+	glViewport(0, 0, 4096, 4096);
 	brdfShader.Bind();
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	renderQuad();
@@ -353,6 +355,15 @@ int main()
 	pbrShader.SetUniformMat4("uProjection", projection);
 	backgroundShader.Bind();
 	backgroundShader.SetUniformMat4("uProjection", projection);
+
+	// load PBR model
+	stbi_set_flip_vertically_on_load(false);
+	Model gun("res/objects/Cerberus_by_Andrew_Maximov/Cerberus_LP.FBX");
+	unsigned int gunAlbedoMap = loadTexture("res/objects/Cerberus_by_Andrew_Maximov/Textures/Cerberus_A.tga");
+	unsigned int gunNormalMap = loadTexture("res/objects/Cerberus_by_Andrew_Maximov/Textures/Cerberus_N.tga");
+	unsigned int gunMetallicMap = loadTexture("res/objects/Cerberus_by_Andrew_Maximov/Textures/Cerberus_M.tga");
+	unsigned int gunRoughnessMap = loadTexture("res/objects/Cerberus_by_Andrew_Maximov/Textures/Cerberus_R.tga");
+	unsigned int gunAOMap = loadTexture("res/objects/Cerberus_by_Andrew_Maximov/Textures/Raw/Cerberus_AO.tga");
 
 	// then before rendering, configure the viewport to the original framebuffer's screen dimensions
 	int srcWidth, srcHeight;
@@ -372,6 +383,7 @@ int main()
 
 		static float mipLevel = 1.2;
 		static bool prefilter = false;
+		static glm::vec3 translate(1.0f, 2.0f, 2.0f);
 
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -389,6 +401,27 @@ int main()
 		glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
 		glActiveTexture(GL_TEXTURE2);
 		glBindTexture(GL_TEXTURE_2D, brdfLUTTexture);
+
+		// gun
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, gunAlbedoMap);
+		glActiveTexture(GL_TEXTURE4);
+		glBindTexture(GL_TEXTURE_2D, gunNormalMap);
+		glActiveTexture(GL_TEXTURE5);
+		glBindTexture(GL_TEXTURE_2D, gunMetallicMap);
+		glActiveTexture(GL_TEXTURE6);
+		glBindTexture(GL_TEXTURE_2D, gunRoughnessMap);
+		glActiveTexture(GL_TEXTURE7);
+		glBindTexture(GL_TEXTURE_2D, gunAOMap);
+
+		model = glm::mat4(1.0f);
+		model = glm::translate(model, translate);
+		model = glm::rotate(model, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+		model = glm::rotate(model, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+		model = glm::scale(model, glm::vec3(0.04f));
+		pbrShader.SetUniformMat4("uModel", model);
+		pbrShader.SetUniformMat3("uNormalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
+		gun.Draw(pbrShader);
 
 		// rusted iron
 		glActiveTexture(GL_TEXTURE3);
@@ -522,6 +555,7 @@ int main()
 			ImGui::Checkbox("Prefilter", &prefilter);
 			if (prefilter)
 				ImGui::DragFloat("Mip Level", &mipLevel, 0.05f, 0.0f, 4.0f);
+			ImGui::DragFloat3("Translation", &translate[0], 0.1f, -10.0f, 10.0f);
 
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 			ImGui::End();
